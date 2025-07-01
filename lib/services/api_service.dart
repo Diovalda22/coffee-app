@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:coffee_app/models/order.dart';
 import 'package:coffee_app/models/product.dart';
 import 'package:coffee_app/models/cart.dart';
+import 'package:coffee_app/models/product_category.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../helper/general_helper.dart';
@@ -18,6 +20,7 @@ class ApiService {
     };
   }
 
+  // Auth API
   Future<bool> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
@@ -78,7 +81,7 @@ class ApiService {
     }
   }
 
-  // Home API
+  // User API
   Future<List<Product>> fetchProducts({String? name, int? categoryId}) async {
     final headers = await _getAuthHeaders();
     final params = <String, dynamic>{};
@@ -142,7 +145,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
-      return jsonData; // ini berisi key: status, data
+      return jsonData; 
     } else {
       throw Exception('Gagal memuat detail produk: ${response.statusCode}');
     }
@@ -195,7 +198,7 @@ class ApiService {
         body: json.encode({'ids': cartIds}),
         headers: {
           ...await _getAuthHeaders(),
-          'Content-Type': 'application/json', // Tambahkan content type
+          'Content-Type': 'application/json', 
         },
       );
       return response.statusCode == 200;
@@ -233,7 +236,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
-      final List orders = jsonData['data']['data']; // karena paginated
+      final List orders = jsonData['data']['data']; 
 
       return orders.map((e) => Order.fromJson(e)).toList();
     } else {
@@ -337,5 +340,348 @@ class ApiService {
     } catch (e) {
       throw Exception('Error deleting review: $e');
     }
+  }
+
+  // Admin API
+  Future<Map<String, dynamic>> getAdminStats() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/stats'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        _handleErrorResponse(response, 'getAdminStats');
+        return {}; 
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat statistik admin: $e');
+    }
+  }
+
+  // Admin Products API
+  Future<List<Product>> fetchAdminProducts({
+    String? name,
+    int? categoryId,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final params = <String, String>{}; 
+
+    if (name != null && name.isNotEmpty) params['name'] = name;
+    if (categoryId != null)
+      params['category'] = categoryId.toString(); 
+
+    final uri = Uri.parse(
+      '$baseUrl/admin/product',
+    ).replace(queryParameters: params.isNotEmpty ? params : null);
+
+    try {
+      final response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final List<dynamic> productsJson =
+            jsonData['data']; 
+        return productsJson.map((p) => Product.fromJson(p)).toList();
+      } else {
+        _handleErrorResponse(response, 'fetchAdminProducts');
+        return []; 
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat produk admin: $e');
+    }
+  }
+
+  Future<Product> getProductById(int id) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/product/$id'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body)['data'];
+        return Product.fromJson(jsonData);
+      } else {
+        _handleErrorResponse(response, 'getProductById');
+        throw Exception('Gagal mengambil detail produk.');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil detail produk: $e');
+    }
+  }
+
+  Future<void> createProduct({
+    required String name,
+    required String description,
+    required int price,
+    required int stock,
+    int? categoryId,
+    required File imageFile, 
+  }) async {
+    final uri = Uri.parse('$baseUrl/admin/product');
+    final request = http.MultipartRequest('POST', uri);
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      print(
+        'DEBUG: Token is null or empty. Cannot proceed with authenticated request.',
+      );
+      throw Exception('Autentikasi diperlukan. Silakan login kembali.');
+    }
+
+    request.headers.addAll({
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
+
+    request.fields['name'] = name;
+    request.fields['description'] = description;
+    request.fields['price'] = price.toString();
+    request.fields['stock'] = stock.toString();
+    if (categoryId != null) {
+      request.fields['category_id'] = categoryId.toString();
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'image_url',
+        imageFile.path,
+        filename: imageFile.path.split('/').last,
+      ),
+    );
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('Produk berhasil dibuat: $responseBody');
+      } else {
+        _handleErrorResponse(
+          http.Response(
+            responseBody,
+            response.statusCode,
+            headers: response.headers,
+          ),
+          'createProduct',
+        );
+      }
+    } catch (e) {
+      print('DEBUG: Caught exception in createProduct (ApiService): $e');
+      throw Exception('Gagal menambahkan produk: $e');
+    }
+  }
+
+  Future<void> updateProduct({
+    required int id,
+    required String name,
+    required String description,
+    required int price,
+    required int stock,
+    int? categoryId,
+    File? imageFile, 
+  }) async {
+    final uri = Uri.parse('$baseUrl/admin/product/$id');
+    final request = http.MultipartRequest(
+      'POST',
+      uri,
+    ); 
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    request.headers.addAll({
+      'Authorization': 'Bearer ${token ?? ''}',
+      'Accept': 'application/json',
+    });
+
+    request.fields['name'] = name;
+    request.fields['description'] = description;
+    request.fields['price'] = price.toString();
+    request.fields['stock'] = stock.toString();
+    if (categoryId != null) {
+      request.fields['category_id'] = categoryId.toString();
+    }
+
+    if (imageFile != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image_url', 
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        ),
+      );
+    }
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('Produk berhasil diperbarui: $responseBody');
+      } else {
+        _handleErrorResponse(
+          http.Response(
+            responseBody,
+            response.statusCode,
+            headers: response.headers,
+          ),
+          'updateProduct',
+        );
+      }
+    } catch (e) {
+      throw Exception('Gagal memperbarui produk: $e');
+    }
+  }
+
+  Future<void> deleteProduct(int productId) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/product/$productId'),
+        headers: headers,
+      );
+
+      if (response.statusCode != 200) {
+        _handleErrorResponse(response, 'deleteProduct');
+      }
+    } catch (e) {
+      throw Exception('Gagal menghapus produk: $e');
+    }
+  }
+
+  // Admin Categories API
+  Future<List<ProductCategory>> fetchProductCategories() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/category'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final List<dynamic> categoriesJson = jsonData['data'];
+        return categoriesJson.map((c) => ProductCategory.fromJson(c)).toList();
+      } else {
+        _handleErrorResponse(response, 'fetchProductCategories');
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat kategori produk: $e');
+    }
+  }
+
+  Future<ProductCategory> createProductCategory(String name) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/admin/category'),
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json', 
+        },
+        body: json.encode({'name': name}),
+      );
+
+      if (response.statusCode == 201) {
+        final jsonData = json.decode(response.body);
+        return ProductCategory.fromJson(jsonData['data']);
+      } else {
+        _handleErrorResponse(response, 'createProductCategory');
+        throw Exception(
+          'Gagal membuat kategori.',
+        ); 
+      }
+    } catch (e) {
+      throw Exception('Gagal menambahkan kategori: $e');
+    }
+  }
+
+  Future<ProductCategory> updateProductCategory(int id, String name) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/admin/category/$id'),
+        headers: {...headers, 'Content-Type': 'application/json'},
+        body: json.encode({'name': name}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final jsonData = json.decode(response.body);
+        return ProductCategory.fromJson(jsonData['data']);
+      } else {
+        _handleErrorResponse(response, 'updateProductCategory');
+        throw Exception('Gagal memperbarui kategori.');
+      }
+    } catch (e) {
+      throw Exception('Gagal memperbarui kategori: $e');
+    }
+  }
+
+  Future<void> deleteProductCategory(int id) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/category/$id'),
+        headers: headers,
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('Kategori berhasil dihapus: $id');
+      } else {
+        _handleErrorResponse(response, 'deleteProductCategory');
+        throw Exception('Gagal menghapus kategori.');
+      }
+    } catch (e) {
+      throw Exception('Gagal menghapus kategori: $e');
+    }
+  }
+
+  Future<List<Order>> fetchOrders() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/order'), 
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final List<dynamic> ordersJson = jsonData['data'];
+        return ordersJson.map((o) => Order.fromJson(o)).toList();
+      } else {
+        _handleErrorResponse(response, 'fetchOrders');
+        return []; 
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat daftar pesanan: $e');
+    }
+  }
+
+  void _handleErrorResponse(http.Response response, String endpoint) {
+    String message = 'Terjadi kesalahan pada $endpoint: ${response.statusCode}';
+    try {
+      final body = json.decode(response.body);
+      if (body is Map && body.containsKey('message')) {
+        message = body['message'];
+      } else if (body is Map && body.containsKey('error')) {
+        message = body['error'];
+      } else if (body is String && body.isNotEmpty) {
+        message = body;
+      }
+    } catch (e) {
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Sesi berakhir atau tidak terautentikasi: $message');
+    }
+    throw Exception(message);
   }
 }

@@ -3,8 +3,10 @@ class Product {
   final String name;
   final String description;
   final int price;
+  final int stock;
   final String imageUrl;
   final int isPromoted;
+  final int? productCategoryId;
 
   Product({
     required this.id,
@@ -13,6 +15,8 @@ class Product {
     required this.price,
     required this.imageUrl,
     required this.isPromoted,
+    required this.stock,
+    this.productCategoryId,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class Product {
       price: json['price'] ?? 0,
       imageUrl: json['image_url'] ?? '',
       isPromoted: json['is_promoted'] ?? 0,
+      stock: json['stock'] as int,
+      productCategoryId: json['product_category_id'] as int?,
     );
   }
 }

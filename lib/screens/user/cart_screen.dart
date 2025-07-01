@@ -31,7 +31,7 @@ class _CartScreenState extends State<CartScreen> {
       setState(() {
         carts = data;
         isLoading = false;
-        selectedItems.clear(); // Clear selection when cart reloads
+        selectedItems.clear(); 
       });
     } catch (e) {
       setState(() => isLoading = false);
@@ -100,9 +100,8 @@ class _CartScreenState extends State<CartScreen> {
       try {
         setState(() => isLoading = true);
 
-        // Konversi Set<int> ke List<int>
         final itemsToDelete = selectedItems.toList();
-        print('Items yang akan dihapus: $itemsToDelete'); // Debug log
+        print('Items yang akan dihapus: $itemsToDelete'); 
 
         final success = await api.removeMultipleCartItems(itemsToDelete);
 
@@ -122,7 +121,7 @@ class _CartScreenState extends State<CartScreen> {
             backgroundColor: Colors.red,
           ),
         );
-        print('Error saat menghapus: $e'); // Debug log
+        print('Error saat menghapus: $e'); 
       } finally {
         setState(() {
           isLoading = false;

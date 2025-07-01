@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/api_service.dart';
+import 'package:coffee_app/widgets/product_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
@@ -68,7 +69,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     setState(() {
       _showReviewForm = !_showReviewForm;
       if (_showReviewForm) {
-        // Reset form when showing
         _selectedRating = 0;
         _reviewController.clear();
       }
@@ -95,7 +95,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
 
       if (response['success'] == true) {
-        // Refresh product details to show the new review
         await fetchProductDetail();
         _toggleReviewForm();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,23 +155,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product Image
                 Hero(
                   tag: 'product-image-${product!['id']}',
-                  child: Container(
+                  child: ProductImage(
+                    imagePath: product!['image_url'],
                     height: 300,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      image: DecorationImage(
-                        image: NetworkImage(
-                          product!['image_url'].startsWith('http')
-                              ? product!['image_url']
-                              : 'https://coffe-api.dcode.my.id/storage/${product!['image_url']}',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                    borderRadius: 0,
                   ),
                 ),
 

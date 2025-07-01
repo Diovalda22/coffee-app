@@ -25,9 +25,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             final url = request.url;
             debugPrint('Navigating to: $url');
 
-            // Deteksi redirect selesai pembayaran
             if (url.contains('midtrans-return.flutter-app')) {
-              Navigator.pop(context, 'paid'); // kirim sinyal ke CartScreen
+              Navigator.pop(context, 'paid'); 
               return NavigationDecision.prevent;
             }
 

@@ -205,7 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Gambar produk dengan badge
                 SizedBox(
                   height: 90,
                   child: Stack(
@@ -316,7 +315,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 8),
 
-                // Tombol icon saja (tanpa teks)
                 Align(
                   alignment: Alignment.centerRight,
                   child: SizedBox(
@@ -349,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF5D4037),
-                        foregroundColor: Colors.white, // ICON WARNA PUTIH
+                        foregroundColor: Colors.white, 
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),

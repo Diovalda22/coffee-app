@@ -19,7 +19,6 @@ class _OrderScreenState extends State<OrderScreen> {
   final DateFormat dateFormat = DateFormat('dd MMM yyyy, HH:mm');
   final NumberFormat currencyFormat = NumberFormat('#,###');
 
-  // Warna yang digunakan
   final Color primaryColor = const Color(0xFF6F4E37);
   final Color backgroundColor = const Color(0xFFF8F3E5);
   final Color accentColor = const Color(0xFFDAB894);
