@@ -96,12 +96,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
       if (response['success'] == true) {
         await fetchProductDetail();
-        _toggleReviewForm();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response['message'] ?? 'Ulasan berhasil disimpan'),
-            behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context, true);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ProductDetailScreen(productId: widget.productId),
           ),
         );
       } else {

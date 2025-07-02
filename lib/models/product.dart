@@ -7,6 +7,7 @@ class Product {
   final String imageUrl;
   final int isPromoted;
   final int? productCategoryId;
+  final double? averageRating;
 
   Product({
     required this.id,
@@ -17,6 +18,7 @@ class Product {
     required this.isPromoted,
     required this.stock,
     this.productCategoryId,
+    this.averageRating,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Product {
       isPromoted: json['is_promoted'] ?? 0,
       stock: json['stock'] as int,
       productCategoryId: json['product_category_id'] as int?,
+      averageRating: (json['average_rating'] as num?)?.toDouble(),
     );
   }
 }

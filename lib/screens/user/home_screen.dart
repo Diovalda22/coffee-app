@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList();
     });
   }
-    
+
   void _onItemTapped(int index) {
     if (index == 3) {
       _showLogoutConfirmation();
@@ -189,16 +189,19 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final shouldRefresh = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     ProductDetailScreen(productId: product.id),
               ),
             );
-          },
 
+            if (shouldRefresh == true && mounted) {
+              loadProducts();
+            }
+          },
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -288,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 2),
                           Text(
-                            '4.5',
+                            product.averageRating.toString(),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[700],
@@ -347,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF5D4037),
-                        foregroundColor: Colors.white, 
+                        foregroundColor: Colors.white,
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
