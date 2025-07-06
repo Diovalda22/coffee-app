@@ -14,7 +14,7 @@ class OrderDetailScreen extends StatelessWidget {
       case 'paid':
         return 'Dibayar';
       case 'pending':
-        return 'Menunggu Pembayaran';
+        return 'Tertunda';
       case 'shipped':
         return 'Dikirim';
       case 'delivered':

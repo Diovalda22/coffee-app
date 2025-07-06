@@ -147,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -181,184 +182,153 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductCard(Product product) {
+    final isOutOfStock = product.stock <= 0;
+
     return SizedBox(
-      width: 150,
+      width: 160,
+      height: 240, // Height menyesuaikan isi (tanpa tombol)
       child: Card(
-        elevation: 3,
-        margin: const EdgeInsets.all(4),
+        elevation: 2,
+        margin: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            final shouldRefresh = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    ProductDetailScreen(productId: product.id),
-              ),
-            );
-
-            if (shouldRefresh == true && mounted) {
-              loadProducts();
-            }
-          },
+          onTap: isOutOfStock
+              ? null
+              : () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetailScreen(
+                        productId: product.id,
+                        onReviewSubmitted: () {
+                          // Reload products when review is submitted
+                          loadProducts();
+                        },
+                      ),
+                    ),
+                  );
+                },
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  height: 90,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[200],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            product.imageUrl.startsWith('http')
-                                ? product.imageUrl
-                                : '$baseImageUrl${product.imageUrl}',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Center(
-                                  child: Icon(
-                                    Icons.broken_image,
-                                    size: 30,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                          ),
+                // Product Image with Overlay
+                Stack(
+                  children: [
+                    Container(
+                      height: 100,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[200],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          product.imageUrl.startsWith('http')
+                              ? product.imageUrl
+                              : '$baseImageUrl${product.imageUrl}',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.broken_image, size: 30),
                         ),
                       ),
-                      if (product.isPromoted == 1)
-                        Positioned(
-                          top: 6,
-                          left: 6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red[400],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'PROMO',
+                    ),
+
+                    // <<<<< Diperbaiki: penulisan `if` setelah Container ditutup
+                    if (isOutOfStock)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'STOK HABIS',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
 
                 const SizedBox(height: 8),
 
-                SizedBox(
-                  height: 20,
-                  child: Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4E342E),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                // Product Name
+                Text(
+                  product.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const SizedBox(height: 4),
+
+                // Stock Information
+                Text(
+                  'Stok: ${product.stock}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isOutOfStock ? Colors.red : Colors.grey[600],
+                    fontWeight: isOutOfStock
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
 
                 const SizedBox(height: 4),
 
-                SizedBox(
-                  height: 20,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 2),
+                // Rating and Price
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Rating
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          product.averageRating?.toStringAsFixed(1) ?? '0.0',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+
+                    // Price
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (product.isDiscountActive)
                           Text(
-                            product.averageRating.toString(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
+                            'Rp${NumberFormat("#,###").format(product.price)}',
+                            style: const TextStyle(
+                              decoration: TextDecoration.lineThrough,
+                              fontSize: 10,
                             ),
                           ),
-                        ],
-                      ),
-                      Text(
-                        NumberFormat.currency(
-                          locale: 'id_ID',
-                          symbol: 'Rp',
-                          decimalDigits: 0,
-                        ).format(product.price),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF5D4037),
+                        Text(
+                          'Rp${NumberFormat("#,###").format(product.finalPrice ?? product.price)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: product.isDiscountActive
+                                ? Colors.red[700]
+                                : const Color(0xFF5D4037),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SizedBox(
-                    height: 36,
-                    width: 36,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await api.addToCart(product.id, 1);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Ditambahkan ke keranjang'),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(e.toString()),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5D4037),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Icon(Icons.add_shopping_cart, size: 18),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -370,6 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSection(String title, List<Product> products) {
     if (products.isEmpty) return const SizedBox();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -390,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         SizedBox(
-          height: 220,
+          height: 240, // Sesuaikan dengan tinggi kartu
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             scrollDirection: Axis.horizontal,
@@ -405,6 +376,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeContent() {
+    final isSearching = searchController.text.isNotEmpty;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: CustomScrollView(
@@ -426,6 +399,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         Icons.search,
                         color: Color(0xFF8D6E63),
                       ),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                filterProducts('');
+                              },
+                            )
+                          : null,
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -446,8 +428,47 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             SliverList(
               delegate: SliverChildListDelegate([
-                _buildSection('Produk Unggulan', promotedProducts),
-                _buildSection('Semua Produk', filteredProducts),
+                if (isSearching)
+                  // Show search results only
+                  filteredProducts.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada produk yang ditemukan',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Coba kata kunci lain',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _buildSection('Hasil Pencarian', filteredProducts)
+                else
+                  // Show normal sections when not searching
+                  Column(
+                    children: [
+                      _buildSection('Produk Unggulan', promotedProducts),
+                      _buildSection('Semua Produk', filteredProducts),
+                    ],
+                  ),
                 const SizedBox(height: 16),
               ]),
             ),
@@ -477,6 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F3E5),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           'Pygmy Owl Coffee',
           style: TextStyle(
@@ -506,52 +528,64 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(6),
               decoration: _selectedIndex == 0
                   ? BoxDecoration(
-                      color: Colors.brown[50],
+                      color: const Color(0xFF4E342E),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
-              child: const Icon(Icons.local_cafe_outlined),
+              child: Icon(
+                Icons.local_cafe_outlined,
+                color: _selectedIndex == 0 ? Colors.white : Colors.brown[300],
+              ),
             ),
-            label: 'Home',
+            label: 'Beranda',
           ),
           BottomNavigationBarItem(
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: _selectedIndex == 1
                   ? BoxDecoration(
-                      color: Colors.brown[50],
+                      color: const Color(0xFF4E342E),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
-              child: const Icon(Icons.shopping_cart_outlined),
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                color: _selectedIndex == 1 ? Colors.white : Colors.brown[300],
+              ),
             ),
-            label: 'Cart',
+            label: 'Keranjang',
           ),
           BottomNavigationBarItem(
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: _selectedIndex == 2
                   ? BoxDecoration(
-                      color: Colors.brown[50],
+                      color: const Color(0xFF4E342E),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
-              child: const Icon(Icons.receipt_long_outlined),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                color: _selectedIndex == 2 ? Colors.white : Colors.brown[300],
+              ),
             ),
-            label: 'Orders',
+            label: 'Pesanan',
           ),
           BottomNavigationBarItem(
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: _selectedIndex == 3
                   ? BoxDecoration(
-                      color: Colors.brown[50],
+                      color: const Color(0xFF4E342E),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
-              child: const Icon(Icons.logout),
+              child: Icon(
+                Icons.logout,
+                color: _selectedIndex == 3 ? Colors.white : Colors.brown[300],
+              ),
             ),
-            label: 'Logout',
+            label: 'Keluar',
           ),
         ],
       ),

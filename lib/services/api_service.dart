@@ -34,6 +34,7 @@ class ApiService {
       final role = data['role'];
       final email = data['email'];
       final name = data['name'];
+      final userId = data['id'];
 
       if (token != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -41,6 +42,7 @@ class ApiService {
         await prefs.setInt('role', role);
         await prefs.setString('email', email);
         await prefs.setString('name', name);
+        await prefs.setInt('userId', userId);
 
         return true;
       }
@@ -145,7 +147,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
-      return jsonData; 
+      return jsonData;
     } else {
       throw Exception('Gagal memuat detail produk: ${response.statusCode}');
     }
@@ -198,7 +200,7 @@ class ApiService {
         body: json.encode({'ids': cartIds}),
         headers: {
           ...await _getAuthHeaders(),
-          'Content-Type': 'application/json', 
+          'Content-Type': 'application/json',
         },
       );
       return response.statusCode == 200;
@@ -236,7 +238,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
-      final List orders = jsonData['data']['data']; 
+      final List orders = jsonData['data']['data'];
 
       return orders.map((e) => Order.fromJson(e)).toList();
     } else {
@@ -260,17 +262,33 @@ class ApiService {
   }
 
   Future<String?> repayOrder(int orderId) async {
-    final headers = await _getAuthHeaders();
-    final response = await http.post(
-      Uri.parse('$baseUrl/user/order/repay/$orderId'),
-      headers: headers,
-    );
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/user/order/repay/$orderId'),
+        headers: headers,
+      );
 
-    if (response.statusCode == 200) {
-      final jsonData = json.decode(response.body);
-      return jsonData['redirect_url'];
-    } else {
-      throw Exception('Gagal memulai ulang pembayaran: ${response.statusCode}');
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return responseData['redirect_url'];
+      } else if (response.statusCode == 400) {
+        // Handle case where payment is already done
+        throw Exception(
+          responseData['message'] ?? 'Pembayaran sudah dilakukan',
+        );
+      } else {
+        throw Exception(
+          responseData['message'] ??
+              'Gagal memulai ulang pembayaran: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Response tidak valid dari server');
+      }
+      throw Exception('Gagal memulai ulang pembayaran: $e');
     }
   }
 
@@ -326,7 +344,7 @@ class ApiService {
     }
   }
 
-  Future<void> deleteReview(int reviewId) async {
+  Future<Map<String, dynamic>> deleteReview(int reviewId) async {
     try {
       final headers = await _getAuthHeaders();
       final response = await http.delete(
@@ -334,8 +352,14 @@ class ApiService {
         headers: headers,
       );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete review');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menghapus review',
+          'status_code': response.statusCode,
+        };
       }
     } catch (e) {
       throw Exception('Error deleting review: $e');
@@ -355,7 +379,7 @@ class ApiService {
         return json.decode(response.body);
       } else {
         _handleErrorResponse(response, 'getAdminStats');
-        return {}; 
+        return {};
       }
     } catch (e) {
       throw Exception('Gagal memuat statistik admin: $e');
@@ -368,11 +392,10 @@ class ApiService {
     int? categoryId,
   }) async {
     final headers = await _getAuthHeaders();
-    final params = <String, String>{}; 
+    final params = <String, String>{};
 
     if (name != null && name.isNotEmpty) params['name'] = name;
-    if (categoryId != null)
-      params['category'] = categoryId.toString(); 
+    if (categoryId != null) params['category'] = categoryId.toString();
 
     final uri = Uri.parse(
       '$baseUrl/admin/product',
@@ -383,12 +406,11 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
-        final List<dynamic> productsJson =
-            jsonData['data']; 
+        final List<dynamic> productsJson = jsonData['data'];
         return productsJson.map((p) => Product.fromJson(p)).toList();
       } else {
         _handleErrorResponse(response, 'fetchAdminProducts');
-        return []; 
+        return [];
       }
     } catch (e) {
       throw Exception('Gagal memuat produk admin: $e');
@@ -421,7 +443,11 @@ class ApiService {
     required int price,
     required int stock,
     int? categoryId,
-    required File imageFile, 
+    required File imageFile,
+    int? discountAmount, // Diubah dari int ke double
+    int? discountType,
+    String? discountStart, // Diubah dari DateTime ke String
+    String? discountEnd, // Diubah dari DateTime ke String
   }) async {
     final uri = Uri.parse('$baseUrl/admin/product');
     final request = http.MultipartRequest('POST', uri);
@@ -441,14 +467,35 @@ class ApiService {
       'Accept': 'application/json',
     });
 
+    // Field utama
     request.fields['name'] = name;
     request.fields['description'] = description;
     request.fields['price'] = price.toString();
     request.fields['stock'] = stock.toString();
+
+    // Field opsional kategori
     if (categoryId != null) {
       request.fields['category_id'] = categoryId.toString();
     }
 
+    // Field diskon
+    if (discountAmount != null) {
+      request.fields['discount_amount'] = discountAmount.toString();
+    }
+
+    if (discountType != null) {
+      request.fields['discount_type'] = discountType.toString();
+    }
+
+    if (discountStart != null) {
+      request.fields['discount_start'] = discountStart;
+    }
+
+    if (discountEnd != null) {
+      request.fields['discount_end'] = discountEnd;
+    }
+
+    // Tambahkan file gambar
     request.files.add(
       await http.MultipartFile.fromPath(
         'image_url',
@@ -460,6 +507,7 @@ class ApiService {
     try {
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         print('Produk berhasil dibuat: $responseBody');
       } else {
@@ -485,34 +533,60 @@ class ApiService {
     required int price,
     required int stock,
     int? categoryId,
-    File? imageFile, 
+    File? imageFile,
+    int? discountAmount,
+    int? discountType,
+    String? discountStart,
+    String? discountEnd,
   }) async {
     final uri = Uri.parse('$baseUrl/admin/product/$id');
-    final request = http.MultipartRequest(
-      'POST',
-      uri,
-    ); 
+    final request = http.MultipartRequest('POST', uri);
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
+    if (token == null || token.isEmpty) {
+      throw Exception('Token tidak valid. Silakan login kembali.');
+    }
+
     request.headers.addAll({
-      'Authorization': 'Bearer ${token ?? ''}',
+      'Authorization': 'Bearer $token',
       'Accept': 'application/json',
     });
 
+    // Required fields
     request.fields['name'] = name;
     request.fields['description'] = description;
     request.fields['price'] = price.toString();
     request.fields['stock'] = stock.toString();
+
+    // Optional fields
     if (categoryId != null) {
       request.fields['category_id'] = categoryId.toString();
     }
 
+    // Discount fields
+    if (discountAmount != null) {
+      request.fields['discount_amount'] = discountAmount.toString();
+    }
+
+    if (discountType != null) {
+      request.fields['discount_type'] = discountType.toString();
+    }
+
+    if (discountStart != null && discountStart.isNotEmpty) {
+      request.fields['discount_start'] = discountStart;
+    }
+
+    if (discountEnd != null && discountEnd.isNotEmpty) {
+      request.fields['discount_end'] = discountEnd;
+    }
+
+    // Image file
     if (imageFile != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
-          'image_url', 
+          'image_url',
           imageFile.path,
           filename: imageFile.path.split('/').last,
         ),
@@ -534,8 +608,10 @@ class ApiService {
           ),
           'updateProduct',
         );
+        throw Exception('Gagal memperbarui produk: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error updating product: $e');
       throw Exception('Gagal memperbarui produk: $e');
     }
   }
@@ -553,6 +629,26 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Gagal menghapus produk: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> setPromoted(int productId) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/admin/product/promoted/$productId'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return responseData;
+      } else {
+        _handleErrorResponse(response, 'setPromoted');
+        throw Exception('Gagal mengubah status promosi produk.');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengubah status promosi produk: $e');
     }
   }
 
@@ -583,10 +679,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/admin/category'),
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json', 
-        },
+        headers: {...headers, 'Content-Type': 'application/json'},
         body: json.encode({'name': name}),
       );
 
@@ -595,9 +688,7 @@ class ApiService {
         return ProductCategory.fromJson(jsonData['data']);
       } else {
         _handleErrorResponse(response, 'createProductCategory');
-        throw Exception(
-          'Gagal membuat kategori.',
-        ); 
+        throw Exception('Gagal membuat kategori.');
       }
     } catch (e) {
       throw Exception('Gagal menambahkan kategori: $e');
@@ -648,7 +739,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/admin/order'), 
+        Uri.parse('$baseUrl/admin/order'),
         headers: headers,
       );
 
@@ -658,10 +749,31 @@ class ApiService {
         return ordersJson.map((o) => Order.fromJson(o)).toList();
       } else {
         _handleErrorResponse(response, 'fetchOrders');
-        return []; 
+        return [];
       }
     } catch (e) {
       throw Exception('Gagal memuat daftar pesanan: $e');
+    }
+  }
+
+  Future<List<Order>> fetchLatestOrders() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/latestOrder'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final List<dynamic> ordersJson = jsonData['data'];
+        return ordersJson.map((o) => Order.fromJson(o)).toList();
+      } else {
+        _handleErrorResponse(response, 'fetchLatestOrders');
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat pesanan terbaru: $e');
     }
   }
 
@@ -676,8 +788,7 @@ class ApiService {
       } else if (body is String && body.isNotEmpty) {
         message = body;
       }
-    } catch (e) {
-    }
+    } catch (e) {}
 
     if (response.statusCode == 401) {
       throw Exception('Sesi berakhir atau tidak terautentikasi: $message');

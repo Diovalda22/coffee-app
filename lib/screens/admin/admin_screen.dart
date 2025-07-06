@@ -78,7 +78,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
               Navigator.of(context).pop();
               await Future.delayed(const Duration(milliseconds: 200));
@@ -211,32 +214,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<List<Order>> _fetchRecentOrders() async {
     try {
-      final allOrders = await apiService.fetchOrders();
-      final now = DateTime.now();
-
-      return allOrders.where((order) {
-        if (order.orderDate == null) {
-          return false;
-        }
-        try {
-          final orderDateTime = DateTime.parse(order.orderDate!).toLocal();
-          return orderDateTime.year == now.year &&
-              orderDateTime.month == now.month &&
-              orderDateTime.day == now.day;
-        } catch (e) {
-          print('DEBUG: Failed to parse order date "${order.orderDate}": $e');
-          return false;
-        }
-      }).toList();
+      // Use the latestOrders endpoint from backend
+      final latestOrders = await apiService.fetchLatestOrders();
+      return latestOrders;
     } catch (e) {
-      print('Error fetching recent orders: $e');
-      throw Exception('Gagal memuat daftar pesanan: $e');
+      print('Error fetching latest orders: $e');
+      throw Exception('Gagal memuat pesanan terbaru: $e');
     }
   }
 
-  String formatRupiah(String amount) {
+  String formatRupiah(dynamic amount) {
     try {
-      final double number = double.parse(amount);
+      final number = amount is String
+          ? double.parse(amount)
+          : amount.toDouble();
       final formatter = NumberFormat.currency(
         locale: 'id_ID',
         symbol: 'Rp',
@@ -244,7 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       return formatter.format(number);
     } catch (e) {
-      return 'Rp' + amount;
+      return 'Rp0'; // or handle the error differently
     }
   }
 
@@ -270,7 +261,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'paid':
         return 'Dibayar';
       case 'pending':
-        return 'Menunggu Pembayaran';
+        return 'Tertunda';
       case 'shipped':
         return 'Dikirim';
       case 'delivered':
@@ -572,7 +563,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ), // Jarak antara judul dan card pesanan terbaru
           // --- FutureBuilder untuk Pesanan Terbaru (List<Order>) ---
           FutureBuilder<List<Order>>(
-            // <<< INI UNTUK PESANAN TERBARU
+            // <<< INI UNTUK PESANAN TERBARU (5 TERAKHIR)
             future: _recentOrdersFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -629,8 +620,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 );
               } else if (snapshot.hasData) {
-                final ordersToday = snapshot.data!;
-                if (ordersToday.isEmpty) {
+                final latestOrders = snapshot.data!;
+                if (latestOrders.isEmpty) {
                   return Card(
                     color: cardBackgroundColor,
                     elevation: cardElevation,
@@ -640,9 +631,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     child: const Padding(
                       padding: EdgeInsets.all(16.0),
-                      child: Center(
-                        child: Text('Tidak ada pesanan hari ini.'),
-                      ), // <<< PESAN INI
+                      child: Center(child: Text('Belum ada pesanan terbaru.')),
                     ),
                   );
                 } else {
@@ -653,7 +642,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
-                    child: _buildRecentOrders(context, ordersToday),
+                    child: _buildRecentOrders(context, latestOrders),
                   );
                 }
               } else {
@@ -666,7 +655,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: Text('Tidak ada data pesanan.')),
+                    child: Center(
+                      child: Text('Tidak ada data pesanan terbaru.'),
+                    ),
                   ),
                 );
               }
@@ -692,17 +683,50 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
   List<Product> _products = [];
   bool _isLoading = true;
 
+  // Search controllers and variables
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  int? _selectedCategoryId;
+  List<ProductCategory> _categories = [];
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     _productsFuture = _fetchProducts();
   }
 
-  Future<List<Product>> _fetchProducts() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Load categories for dropdown
+  Future<void> _loadCategories() async {
     try {
-      // UBAH PANGGILAN METODE DI SINI
-      final products = await apiService
-          .fetchAdminProducts(); // Panggil metode untuk admin
+      final categories = await apiService.fetchProductCategories();
+      setState(() {
+        _categories = categories;
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+    }
+  }
+
+  Future<List<Product>> _fetchProducts({String? name, int? categoryId}) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Call API with search parameters
+      final products = await apiService.fetchAdminProducts(
+        name: name,
+        categoryId: categoryId,
+      );
+
       setState(() {
         _products = products;
         _isLoading = false;
@@ -719,6 +743,32 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       }
       throw Exception('Failed to load products: $e');
     }
+  }
+
+  // Perform search
+  void _performSearch() {
+    setState(() {
+      _isSearching = true;
+    });
+
+    _fetchProducts(
+      name: _searchQuery.isNotEmpty ? _searchQuery : null,
+      categoryId: _selectedCategoryId,
+    ).then((_) {
+      setState(() {
+        _isSearching = false;
+      });
+    });
+  }
+
+  // Clear search
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _selectedCategoryId = null;
+    });
+    _fetchProducts();
   }
 
   // Fungsi formatter untuk Rupiah
@@ -743,9 +793,12 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     );
 
     // Jika result adalah true (artinya produk berhasil diupdate dan kembali),
-    // maka refresh daftar produk
+    // maka refresh daftar produk dengan parameter pencarian saat ini
     if (result == true) {
-      _fetchProducts(); // Panggil ulang untuk memuat data terbaru
+      _fetchProducts(
+        name: _searchQuery.isNotEmpty ? _searchQuery : null,
+        categoryId: _selectedCategoryId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Daftar produk diperbarui.')),
@@ -789,8 +842,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           productId,
         ); // Call the API to delete the product
 
-        // After successful deletion, refresh the product list
-        await _fetchProducts();
+        // After successful deletion, refresh the product list with current search parameters
+        await _fetchProducts(
+          name: _searchQuery.isNotEmpty ? _searchQuery : null,
+          categoryId: _selectedCategoryId,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -813,23 +869,54 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     }
   }
 
+  Future<void> _togglePromoted(int productId, bool currentStatus) async {
+    try {
+      final result = await apiService.setPromoted(productId);
+      final newStatus = result['is_promoted'] == 1;
+      final statusText = newStatus ? 'dipromosikan' : 'tidak dipromosikan';
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Produk berhasil $statusText'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      // Refresh with current search parameters
+      _fetchProducts(
+        name: _searchQuery.isNotEmpty ? _searchQuery : null,
+        categoryId: _selectedCategoryId,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah status promosi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          // Header with title and add button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                // <-- Huruf 'C' besar di sini
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4E342E), // Warna pembungkus
+                  color: const Color(0xFF4E342E),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Align(
@@ -853,48 +940,173 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                       builder: (context) => const ProductAddScreen(),
                     ),
                   );
-                  // Jika produk berhasil ditambahkan (result adalah true), refresh daftar
                   if (result == true) {
-                    _productsFuture =
-                        _fetchProducts(); // Re-assign future to trigger refresh
-                    // Tidak perlu setState di sini karena _fetchProducts sudah setState
+                    _productsFuture = _fetchProducts(
+                      name: _searchQuery.isNotEmpty ? _searchQuery : null,
+                      categoryId: _selectedCategoryId,
+                    );
                   }
-                  // TODO: Implementasi navigasi ke halaman tambah produk
                   print('Tombol Tambah Produk ditekan');
                 },
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: FutureBuilder<List<Product>>(
-              future: _productsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting ||
-                    _isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  ); // Indikator loading
-                } else if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Error: ${snapshot.error}'),
-                  ); // Tampilkan pesan error
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text('Tidak ada produk tersedia.'),
-                  ); // Data kosong
-                } else {
-                  // Data berhasil dimuat, tampilkan daftar produk
-                  return ListView.builder(
-                    itemCount: _products.length, // Gunakan _products.length
-                    itemBuilder: (context, index) {
-                      final product = _products[index]; // Ambil objek produk
 
-                      // Pastikan baseImageUrl tersedia di scope ini (diimpor atau global)
-                      // Misalnya, jika baseImageUrl didefinisikan dari flutter_dotenv
+          // Search Section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cari Produk',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Search by name
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Cari berdasarkan nama produk...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    onSubmitted: (value) {
+                      _performSearch();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Category filter
+                  DropdownButtonFormField<int?>(
+                    value: _selectedCategoryId,
+                    decoration: InputDecoration(
+                      hintText: 'Pilih kategori (opsional)',
+                      prefixIcon: const Icon(Icons.category),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Semua Kategori'),
+                      ),
+                      ..._categories.map(
+                        (category) => DropdownMenuItem<int?>(
+                          value: category.id,
+                          child: Text(category.name),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategoryId = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Search and Clear buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: _isSearching
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.search),
+                          label: Text(_isSearching ? 'Mencari...' : 'Cari'),
+                          onPressed: _isSearching ? null : _performSearch,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4E342E),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.clear_all),
+                        label: const Text('Reset'),
+                        onPressed: _clearSearch,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _products.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty || _selectedCategoryId != null
+                              ? 'Tidak ada produk yang sesuai dengan pencarian'
+                              : 'Tidak ada produk tersedia',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty ||
+                            _selectedCategoryId != null) ...[
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _clearSearch,
+                            child: const Text('Reset Pencarian'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _products.length,
+                    itemBuilder: (context, index) {
+                      final product = _products[index];
                       final String fullImageUrl =
                           '$baseImageUrl${product.imageUrl}';
-
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -904,35 +1116,136 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                           ),
                           leading: CircleAvatar(
                             radius: 20,
-                            // Tampilkan gambar atau placeholder jika URL kosong/null
                             backgroundImage: product.imageUrl.isNotEmpty
                                 ? NetworkImage(fullImageUrl) as ImageProvider
-                                : const AssetImage(
-                                    'assets/placeholder.png',
-                                  ), // Ganti dengan path gambar placeholder Anda
+                                : const AssetImage('assets/placeholder.png'),
                             onBackgroundImageError: (exception, stackTrace) {
-                              // Handle error saat gambar gagal dimuat
                               print(
                                 'Error memuat gambar ${product.name}: $exception',
                               );
-                              // Anda bisa menampilkan gambar placeholder di sini
                             },
                           ),
                           title: Text(
-                            product.name, // Tampilkan nama produk
+                            product.name,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
-                          subtitle: Text(
-                            formatRupiah(
-                              product.price,
-                            ), // Tampilkan harga dengan format Rupiah
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (product.finalPrice != null &&
+                                  product.finalPrice! < product.price)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          formatRupiah(product.finalPrice!),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'DISKON',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 8,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      formatRupiah(product.price),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Text(
+                                  formatRupiah(product.price),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              if (product.discountStart != null &&
+                                  product.discountEnd != null)
+                                Text(
+                                  '${DateFormat('dd/MM').format(DateTime.parse(product.discountStart!))} - ${DateFormat('dd/MM').format(DateTime.parse(product.discountEnd!))}',
+                                  style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              if (product.isPromoted == 1)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.star,
+                                      size: 10,
+                                      color: Colors.amber,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      'Dipromosikan',
+                                      style: TextStyle(
+                                        color: Colors.amber[700],
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              IconButton(
+                                icon: Icon(
+                                  product.isPromoted == 1
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 18,
+                                  color: product.isPromoted == 1
+                                      ? Colors.amber
+                                      : Colors.grey,
+                                ),
+                                onPressed: () => _togglePromoted(
+                                  product.id,
+                                  product.isPromoted == 1,
+                                ),
+                                tooltip: product.isPromoted == 1
+                                    ? 'Hapus dari Promosi'
+                                    : 'Promosikan Produk',
+                              ),
                               IconButton(
                                 icon: const Icon(
                                   Icons.edit,
@@ -940,7 +1253,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                                   color: Colors.blue,
                                 ),
                                 onPressed: () {
-                                  // TODO: Implementasi edit produk
                                   _navigateToEditProductScreen(product);
                                   print('Edit Produk: ${product.name}');
                                 },
@@ -953,10 +1265,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                                 ),
                                 onPressed: () {
                                   _deleteProduct(product.id, product.name);
-                                  // TODO: Implementasi delete produk
                                   print('Hapus Produk: ${product.name}');
-                                  // Misalnya, panggil API delete, lalu refresh daftar produk
-                                  // _deleteProduct(product.id);
                                 },
                               ),
                             ],
@@ -964,10 +1273,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                         ),
                       );
                     },
-                  );
-                }
-              },
-            ),
+                  ),
           ),
         ],
       ),
@@ -1185,9 +1491,26 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Manajemen Kategori',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4E342E),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Manajemen Kategori',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add, size: 16),
@@ -1357,7 +1680,7 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
       case 'paid':
         return 'Dibayar';
       case 'pending':
-        return 'Menunggu Pembayaran';
+        return 'Tertunda';
       case 'shipped':
         return 'Dikirim';
       case 'delivered':
@@ -1375,16 +1698,31 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Manajemen Pesanan',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4E342E),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Manajemen Pesanan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 12),
           SingleChildScrollView(

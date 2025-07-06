@@ -55,7 +55,7 @@ class Order {
   final String? orderDate;
   final List<OrderDetail> details;
   final DateTime createdAt;
-  final DateTime deletedAt;
+  final DateTime? deletedAt;
 
   Order({
     required this.id,
@@ -68,13 +68,13 @@ class Order {
     this.orderDate,
     required this.details,
     required this.createdAt,
-    required this.deletedAt,
+    this.deletedAt,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as int,
-      userId: json['user_id'] as int,
+      userId: json['user_id'] as int?,
       totalPrice: json['total_price'],
       paymentStatus: json['payment_status'] as String,
       totalQuantity: json['total_quantity'] as int?,
@@ -93,7 +93,7 @@ class Order {
           : DateTime.now(),
       deletedAt: json['deleted_at'] != null
           ? DateTime.parse(json['deleted_at'])
-          : DateTime.now(),
+          : null,
     );
   }
 

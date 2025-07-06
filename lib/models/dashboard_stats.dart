@@ -3,7 +3,7 @@ class DashboardStats {
   final int totalProducts;
   final int totalCategories;
   final int todayOrders;
-  final String monthlyIncome; // Tetap String karena format Rupiah dari API
+  final dynamic monthlyIncome; // Tetap String karena format Rupiah dari API
 
   DashboardStats({
     required this.totalProducts,
@@ -17,7 +17,7 @@ class DashboardStats {
       totalProducts: json['total_products'] as int,
       totalCategories: json['total_categories'] as int,
       todayOrders: json['today_orders'] as int,
-      monthlyIncome: json['monthly_income'] as String,
+      monthlyIncome: json['monthly_income'], // Can be int or double
     );
   }
 }

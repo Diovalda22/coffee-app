@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/api_service.dart';
 import 'package:coffee_app/widgets/product_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
+  final VoidCallback? onReviewSubmitted;
 
-  const ProductDetailScreen({super.key, required this.productId});
+  const ProductDetailScreen({
+    super.key,
+    required this.productId,
+    this.onReviewSubmitted,
+  });
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -19,12 +25,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   final _scrollController = ScrollController();
   bool _showReviewForm = false;
+  bool _isEditingReview = false;
   int _selectedRating = 0;
   final TextEditingController _reviewController = TextEditingController();
+  int? _currentUserId;
+  Map<String, dynamic>? _userReview;
 
   @override
   void initState() {
     super.initState();
+    _getCurrentUserId();
     fetchProductDetail();
   }
 
@@ -34,14 +44,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.dispose();
   }
 
+  Future<void> _getCurrentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+    print('DEBUG: Retrieved user ID from SharedPreferences: $userId');
+    setState(() {
+      _currentUserId = userId;
+    });
+  }
+
   Future<void> fetchProductDetail() async {
     try {
+      print(
+        'DEBUG: Fetching product detail for product ID: ${widget.productId}',
+      );
       final result = await api.fetchProductDetail(widget.productId);
+      print('DEBUG: Product detail response received');
       setState(() {
         product = result['data'];
         isLoading = false;
       });
+      print('DEBUG: Calling _findUserReview after data update');
+      _findUserReview();
     } catch (e) {
+      print('DEBUG: Error fetching product detail: $e');
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -51,6 +77,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
+      );
+    }
+  }
+
+  void _findUserReview() {
+    if (product != null &&
+        _currentUserId != null &&
+        product!['reviews'] != null) {
+      final reviews = product!['reviews'] as List;
+      print('DEBUG: Current user id: $_currentUserId');
+      print('DEBUG: Reviews count: ${reviews.length}');
+
+      try {
+        _userReview = reviews.cast<Map<String, dynamic>>().firstWhere((review) {
+          final reviewUserId = review['user_id'];
+          print(
+            'DEBUG: Review user_id: $reviewUserId, Current user_id: $_currentUserId',
+          );
+          return reviewUserId == _currentUserId;
+        });
+        print('DEBUG: User review found: $_userReview');
+      } catch (e) {
+        _userReview = null;
+        print('DEBUG: User review not found - $e');
+      }
+    } else {
+      print(
+        'DEBUG: Cannot find user review - product: ${product != null}, currentUserId: $_currentUserId, reviews: ${product?['reviews'] != null}',
       );
     }
   }
@@ -68,11 +122,77 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void _toggleReviewForm() {
     setState(() {
       _showReviewForm = !_showReviewForm;
+      _isEditingReview = false;
       if (_showReviewForm) {
         _selectedRating = 0;
         _reviewController.clear();
       }
     });
+  }
+
+  void _editReview() {
+    if (_userReview != null) {
+      setState(() {
+        _showReviewForm = true;
+        _isEditingReview = true;
+        _selectedRating = _userReview!['rating'];
+        _reviewController.text = _userReview!['review'];
+      });
+    }
+  }
+
+  Future<void> _deleteReview() async {
+    if (_userReview == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Ulasan'),
+        content: const Text('Apakah Anda yakin ingin menghapus ulasan ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final response = await api.deleteReview(_userReview!['id']);
+
+        if (response['success'] == true) {
+          await fetchProductDetail();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Ulasan berhasil dihapus'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Notify parent screen to reload
+          if (mounted && widget.onReviewSubmitted != null) {
+            widget.onReviewSubmitted!();
+          }
+        } else {
+          throw Exception(response['message'] ?? 'Gagal menghapus ulasan');
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _submitReview() async {
@@ -88,14 +208,36 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     try {
-      final response = await api.submitReview(
-        productId: widget.productId,
-        rating: _selectedRating,
-        review: _reviewController.text,
-      );
+      Map<String, dynamic> response;
+
+      if (_isEditingReview && _userReview != null) {
+        // Update existing review
+        print('DEBUG: Updating existing review with ID: ${_userReview!['id']}');
+        response = await api.updateReview(
+          reviewId: _userReview!['id'],
+          rating: _selectedRating,
+          review: _reviewController.text,
+        );
+      } else {
+        // Submit new review
+        print('DEBUG: Submitting new review for product: ${widget.productId}');
+        response = await api.submitReview(
+          productId: widget.productId,
+          rating: _selectedRating,
+          review: _reviewController.text,
+        );
+      }
+
+      print('DEBUG: Review response: $response');
 
       if (response['success'] == true) {
+        print('DEBUG: Review submitted successfully, refreshing data...');
         await fetchProductDetail();
+        setState(() {
+          _showReviewForm = false;
+          _isEditingReview = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response['message'] ?? 'Ulasan berhasil disimpan'),
@@ -103,24 +245,55 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         );
 
-        Navigator.pop(context, true);
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                ProductDetailScreen(productId: widget.productId),
-          ),
-        );
+        // Notify parent screen to reload
+        if (mounted && widget.onReviewSubmitted != null) {
+          widget.onReviewSubmitted!();
+        }
       } else {
         throw Exception(response['message'] ?? 'Gagal menyimpan ulasan');
       }
     } catch (e) {
+      print('DEBUG: Error submitting review: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildReviewActionButton() {
+    if (_userReview != null) {
+      // User has already reviewed - show edit and delete buttons
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton.icon(
+            onPressed: _editReview,
+            icon: const Icon(Icons.edit, size: 16),
+            label: const Text('Edit'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: _deleteReview,
+            icon: const Icon(Icons.delete, size: 16),
+            label: const Text('Hapus'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ),
+        ],
+      );
+    } else {
+      // User hasn't reviewed yet - show add review button
+      return TextButton(
+        onPressed: _toggleReviewForm,
+        child: Text(
+          _showReviewForm ? 'Batal' : 'Tambah Ulasan',
+          style: TextStyle(color: Theme.of(context).colorScheme.primary),
         ),
       );
     }
@@ -201,13 +374,84 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Rp ${NumberFormat('#,###', 'id_ID').format(product!['price'])}',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+                      // Price display with discount
+                      if (product!['final_price'] != null &&
+                          product!['final_price'] < product!['price'])
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Rp ${NumberFormat('#,###', 'id_ID').format(product!['final_price'])}',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'DISKON',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Rp ${NumberFormat('#,###', 'id_ID').format(product!['price'])}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[600],
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            if (product!['discount_start'] != null &&
+                                product!['discount_end'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Diskon berlaku: ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_start']))} - ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_end']))}',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: Colors.grey[600],
+                                            fontSize: 11,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        )
+                      else
+                        Text(
+                          'Rp ${NumberFormat('#,###', 'id_ID').format(product!['price'])}',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Deskripsi',
@@ -232,13 +476,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          TextButton(
-                            onPressed: _toggleReviewForm,
-                            child: Text(
-                              _showReviewForm ? 'Batal' : 'Tambah Ulasan',
-                              style: TextStyle(color: colorScheme.primary),
-                            ),
-                          ),
+                          _buildReviewActionButton(),
                         ],
                       ),
                       const SizedBox(height: 8),

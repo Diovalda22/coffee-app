@@ -1,8 +1,8 @@
-import 'dart:io'; // Untuk File
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Package untuk memilih gambar
+import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
-import '../../models/product_category.dart'; // Import model kategori produk
+import '../../models/product_category.dart';
 
 class ProductAddScreen extends StatefulWidget {
   const ProductAddScreen({super.key});
@@ -15,23 +15,32 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
 
+  // Controller untuk field utama
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _stockController = TextEditingController();
 
-  ProductCategory? _selectedCategory; // Untuk menyimpan kategori yang dipilih
-  List<ProductCategory> _categories =
-      []; // Daftar kategori yang dimuat dari API
-  File? _imageFile; // Untuk menyimpan file gambar yang dipilih
+  // Controller untuk field diskon
+  final TextEditingController _discountAmountController =
+      TextEditingController();
+  final TextEditingController _discountStartController =
+      TextEditingController();
+  final TextEditingController _discountEndController = TextEditingController();
 
-  bool _isLoading = false; // Status loading untuk submit form
-  bool _isCategoryLoading = true; // Status loading untuk kategori
+  // Variabel state
+  ProductCategory? _selectedCategory;
+  List<ProductCategory> _categories = [];
+  File? _imageFile;
+  int? _selectedDiscountType; // 0 = persentase, 1 = nominal, 2 = custom
+
+  bool _isLoading = false;
+  bool _isCategoryLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchCategories(); // Muat kategori saat inisialisasi
+    _fetchCategories();
   }
 
   @override
@@ -40,10 +49,12 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _stockController.dispose();
+    _discountAmountController.dispose();
+    _discountStartController.dispose();
+    _discountEndController.dispose();
     super.dispose();
   }
 
-  // --- Ambil daftar kategori dari API ---
   Future<void> _fetchCategories() async {
     setState(() {
       _isCategoryLoading = true;
@@ -54,9 +65,8 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
         _categories = categories;
         _isCategoryLoading = false;
       });
-      print('Categories loaded successfully: ${_categories.length} items');
     } catch (e) {
-      print('DEBUG: Error in _fetchCategories() from ProductAddScreen: $e');
+      print('Error loading categories: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -68,7 +78,6 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
     }
   }
 
-  // --- Pilih gambar dari galeri ---
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
@@ -82,7 +91,6 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
     }
   }
 
-  // --- Submit form untuk menambah produk ---
   Future<void> _submitProduct() async {
     if (_formKey.currentState!.validate()) {
       if (_imageFile == null) {
@@ -104,8 +112,18 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
           description: _descriptionController.text,
           price: int.parse(_priceController.text),
           stock: int.parse(_stockController.text),
-          categoryId: _selectedCategory?.id, // Kirim ID kategori yang dipilih
-          imageFile: _imageFile!, // Kirim file gambar
+          categoryId: _selectedCategory?.id,
+          imageFile: _imageFile!,
+          discountAmount: _discountAmountController.text.isNotEmpty
+              ? int.parse(_discountAmountController.text)
+              : null,
+          discountType: _selectedDiscountType,
+          discountStart: _discountStartController.text.isNotEmpty
+              ? _discountStartController.text
+              : null,
+          discountEnd: _discountEndController.text.isNotEmpty
+              ? _discountEndController.text
+              : null,
         );
 
         if (mounted) {
@@ -115,9 +133,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.of(
-            context,
-          ).pop(true); // Kembali ke layar sebelumnya dengan hasil sukses
+          Navigator.of(context).pop(true);
         }
       } catch (e) {
         print('Error adding product: $e');
@@ -150,7 +166,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Input Nama Produk
+                    // Nama Produk
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -166,7 +182,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Deskripsi Produk
+                    // Deskripsi Produk
                     TextFormField(
                       controller: _descriptionController,
                       decoration: const InputDecoration(
@@ -183,7 +199,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Harga Produk
+                    // Harga Produk
                     TextFormField(
                       controller: _priceController,
                       decoration: const InputDecoration(
@@ -203,7 +219,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Stok Produk
+                    // Stok Produk
                     TextFormField(
                       controller: _stockController,
                       decoration: const InputDecoration(
@@ -223,7 +239,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Dropdown Kategori
+                    // Kategori Produk
                     _isCategoryLoading
                         ? const CircularProgressIndicator()
                         : DropdownButtonFormField<ProductCategory>(
@@ -245,6 +261,109 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                               );
                             }).toList(),
                           ),
+                    const SizedBox(height: 16),
+
+                    // Jumlah Diskon
+                    TextFormField(
+                      controller: _discountAmountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Jumlah Diskon (Opsional)',
+                        border: OutlineInputBorder(),
+                        hintText: 'Misal: 10000 atau 10',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value != null &&
+                            value.isNotEmpty &&
+                            double.tryParse(value) == null) {
+                          return 'Harus angka';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tipe Diskon
+                    DropdownButtonFormField<int>(
+                      decoration: const InputDecoration(
+                        labelText: 'Tipe Diskon (Opsional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedDiscountType,
+                      hint: const Text('Pilih Tipe Diskon'),
+                      onChanged: (int? newValue) {
+                        setState(() {
+                          _selectedDiscountType = newValue;
+                        });
+                      },
+                      items: const [
+                        DropdownMenuItem<int>(
+                          value: 1,
+                          child: Text('Persentase'),
+                        ),
+                        DropdownMenuItem<int>(value: 2, child: Text('Nominal')),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tanggal Mulai Diskon
+                    TextFormField(
+                      controller: _discountStartController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mulai Diskon (Opsional)',
+                        border: OutlineInputBorder(),
+                        hintText: 'YYYY-MM-DD',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          _discountStartController.text =
+                              "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tanggal Berakhir Diskon
+                    TextFormField(
+                      controller: _discountEndController,
+                      decoration: const InputDecoration(
+                        labelText: 'Berakhir Diskon (Opsional)',
+                        border: OutlineInputBorder(),
+                        hintText: 'YYYY-MM-DD',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          _discountEndController.text =
+                              "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                      validator: (value) {
+                        if (value != null &&
+                            value.isNotEmpty &&
+                            _discountStartController.text.isNotEmpty) {
+                          final startDate = DateTime.parse(
+                            _discountStartController.text,
+                          );
+                          final endDate = DateTime.parse(value);
+                          if (endDate.isBefore(startDate)) {
+                            return 'Tanggal berakhir harus setelah tanggal mulai';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 16),
 
                     // Pemilihan Gambar

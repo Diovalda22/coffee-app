@@ -12,6 +12,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   late final WebViewController _controller;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -21,12 +22,32 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
+          onPageStarted: (url) {
+            setState(() => isLoading = true);
+            debugPrint('Page started loading: $url');
+          },
+          onPageFinished: (url) {
+            setState(() => isLoading = false);
+            debugPrint('Page finished loading: $url');
+          },
           onNavigationRequest: (request) {
             final url = request.url;
             debugPrint('Navigating to: $url');
 
-            if (url.contains('midtrans-return.flutter-app')) {
-              Navigator.pop(context, 'paid'); 
+            // Handle various Midtrans callback URLs
+            if (url.contains('midtrans-return.flutter-app') ||
+                url.contains('success') ||
+                url.contains('finish') ||
+                url.contains('payment-success')) {
+              Navigator.pop(context, 'paid');
+              return NavigationDecision.prevent;
+            }
+
+            // Handle failure scenarios
+            if (url.contains('failure') ||
+                url.contains('error') ||
+                url.contains('cancel')) {
+              Navigator.pop(context, 'failed');
               return NavigationDecision.prevent;
             }
 
@@ -34,6 +55,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           },
           onWebResourceError: (error) {
             debugPrint('Web error: ${error.description}');
+            setState(() => isLoading = false);
           },
         ),
       )
@@ -43,8 +65,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pembayaran')),
-      body: WebViewWidget(controller: _controller),
+      appBar: AppBar(
+        title: const Text('Pembayaran'),
+        backgroundColor: const Color(0xFFF8F3E5),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF3E2723)),
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (isLoading) const Center(child: CircularProgressIndicator()),
+        ],
+      ),
     );
   }
 }

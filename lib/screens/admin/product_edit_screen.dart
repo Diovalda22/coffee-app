@@ -1,141 +1,159 @@
-// Path: lib/screens/product/product_edit_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Untuk memilih gambar
-import 'dart:io'; // Untuk tipe File
-
-// Pastikan Anda mengimpor model dan service yang benar
-import '../../helper/general_helper.dart';
-import '../../models/product.dart'; // Import ProductModel
-import '../../models/product_category.dart'; // Import ProductCategory
-import '../../services/api_service.dart'; // Import ApiService Anda
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../../models/product.dart';
+import '../../models/product_category.dart';
+import '../../services/api_service.dart';
+import 'package:coffee_app/widgets/product_image.dart';
 
 class ProductEditScreen extends StatefulWidget {
-  final Product product; // Menerima objek produk yang akan diedit dari layar sebelumnya
+  final Product product;
 
-  const ProductEditScreen({Key? key, required this.product}) : super(key: key);
+  const ProductEditScreen({super.key, required this.product});
 
   @override
   State<ProductEditScreen> createState() => _ProductEditScreenState();
 }
 
 class _ProductEditScreenState extends State<ProductEditScreen> {
-  final _formKey = GlobalKey<FormState>(); // Kunci untuk validasi form
-  final ApiService _apiService = ApiService(); // Instansi ApiService
+  final _formKey = GlobalKey<FormState>();
+  final ApiService _apiService = ApiService();
 
-  // Controllers untuk setiap input field, diinisialisasi di initState
+  // Main product fields
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
 
-  // State untuk dropdown kategori
+  // Discount fields
+  late TextEditingController _discountAmountController;
+  late TextEditingController _discountStartController;
+  late TextEditingController _discountEndController;
+  int? _selectedDiscountType;
+
+  // Category and image
   ProductCategory? _selectedCategory;
   List<ProductCategory> _categories = [];
-  bool _isCategoryLoading = true; // Status loading kategori
+  File? _imageFile;
+  String? _currentImageUrl;
 
-  // State untuk gambar
-  File? _imageFile; // Menyimpan gambar baru yang dipilih dari galeri
-  String? _currentImageUrl; // Menyimpan URL gambar yang sudah ada (dari produk yang diedit)
-
-  bool _isLoading = false; // Status loading saat submit form
+  bool _isLoading = false;
+  bool _isCategoryLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi controllers dengan data produk yang diterima
+    // Initialize all controllers with product data
     _nameController = TextEditingController(text: widget.product.name);
-    _descriptionController = TextEditingController(text: widget.product.description);
-    _priceController = TextEditingController(text: widget.product.price.toString());
-    _stockController = TextEditingController(text: widget.product.stock.toString());
+    _descriptionController = TextEditingController(
+      text: widget.product.description,
+    );
+    _priceController = TextEditingController(
+      text: widget.product.price.toString(),
+    );
+    _stockController = TextEditingController(
+      text: widget.product.stock.toString(),
+    );
 
-    // Set URL gambar yang sudah ada dari objek produk
+    // Initialize discount fields
+    _discountAmountController = TextEditingController(
+      text: widget.product.discountAmount?.toString() ?? '',
+    );
+    _selectedDiscountType = widget.product.discountType;
+
+    // Format dates if they exist
+    if (widget.product.discountStart != null) {
+      _discountStartController = TextEditingController(
+        text: widget.product.discountStart!.substring(0, 10),
+      );
+    } else {
+      _discountStartController = TextEditingController();
+    }
+
+    if (widget.product.discountEnd != null) {
+      _discountEndController = TextEditingController(
+        text: widget.product.discountEnd!.substring(0, 10),
+      );
+    } else {
+      _discountEndController = TextEditingController();
+    }
+
     _currentImageUrl = widget.product.imageUrl;
-
-    // Ambil daftar kategori dari API
     _fetchCategories();
   }
 
   @override
   void dispose() {
-    // Pastikan untuk membuang controllers saat widget di-dispose untuk mencegah memory leaks
+    // Dispose all controllers
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
     _stockController.dispose();
+    _discountAmountController.dispose();
+    _discountStartController.dispose();
+    _discountEndController.dispose();
     super.dispose();
   }
 
-  // --- Metode untuk mengambil daftar kategori dari API ---
   Future<void> _fetchCategories() async {
-    setState(() {
-      _isCategoryLoading = true;
-    });
+    setState(() => _isCategoryLoading = true);
     try {
       final categories = await _apiService.fetchProductCategories();
       setState(() {
         _categories = categories;
-        // Setelah kategori dimuat, coba set kategori yang terpilih berdasarkan produk
         if (widget.product.productCategoryId != null) {
           _selectedCategory = _categories.firstWhere(
             (cat) => cat.id == widget.product.productCategoryId,
-            orElse: () => _categories.first, // Fallback jika tidak ditemukan
           );
         }
         _isCategoryLoading = false;
       });
-      print('Categories loaded successfully for Edit Product: ${_categories.length} items');
     } catch (e) {
-      print('DEBUG: Error fetching categories in ProductEditScreen: $e');
+      setState(() => _isCategoryLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat kategori: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal memuat kategori: $e')));
       }
-      setState(() {
-        _isCategoryLoading = false;
-      });
     }
   }
 
-  // --- Metode untuk memilih gambar dari galeri ---
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
+    final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70, // Kompresi gambar untuk mengurangi ukuran file
     );
-
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
-        _currentImageUrl = null; // Hapus URL gambar lama agar tampilan mengarah ke gambar baru
+        _currentImageUrl = null;
       });
-      print('DEBUG: New image picked for update. Path: ${_imageFile!.path}');
-    } else {
-      print('DEBUG: Image picking for update cancelled.');
     }
   }
 
-  // --- Metode untuk submit form update produk ---
   Future<void> _updateProduct() async {
-    if (!_formKey.currentState!.validate()) {
-      return; // Hentikan jika validasi form gagal
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true; // Set status loading
-    });
+    setState(() => _isLoading = true);
 
     try {
       await _apiService.updateProduct(
-        id: widget.product.id, // Kirim ID produk yang diedit
+        id: widget.product.id,
         name: _nameController.text,
         description: _descriptionController.text,
         price: int.parse(_priceController.text),
         stock: int.parse(_stockController.text),
-        categoryId: _selectedCategory?.id, // Kirim ID kategori yang dipilih (bisa null)
-        imageFile: _imageFile, // Kirim file gambar baru (bisa null jika tidak diganti)
+        categoryId: _selectedCategory?.id,
+        imageFile: _imageFile,
+        discountAmount: _discountAmountController.text.isNotEmpty
+            ? int.parse(_discountAmountController.text)
+            : null,
+        discountType: _selectedDiscountType,
+        discountStart: _discountStartController.text.isNotEmpty
+            ? _discountStartController.text
+            : null,
+        discountEnd: _discountEndController.text.isNotEmpty
+            ? _discountEndController.text
+            : null,
       );
 
       if (mounted) {
@@ -145,22 +163,21 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop(true); // Kembali ke layar sebelumnya dengan sinyal sukses
+        Navigator.pop(context, true);
       }
     } catch (e) {
-      print('Error updating product: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui produk: ${e.toString()}'),
+            content: Text('Gagal memperbarui produk: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      setState(() {
-        _isLoading = false; // Nonaktifkan status loading
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -169,128 +186,232 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Produk')),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator()) // Tampilkan loading saat submit
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    // Input Nama Produk
+                  children: [
+                    // Product Name
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Nama Produk',
+                        labelText: 'Nama Produk*',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Nama produk tidak boleh kosong';
+                          return 'Nama produk wajib diisi';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Deskripsi Produk
+                    // Product Description
                     TextFormField(
                       controller: _descriptionController,
                       decoration: const InputDecoration(
-                        labelText: 'Deskripsi Produk',
+                        labelText: 'Deskripsi Produk*',
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Deskripsi produk tidak boleh kosong';
+                          return 'Deskripsi produk wajib diisi';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Harga Produk
+                    // Product Price
                     TextFormField(
                       controller: _priceController,
                       decoration: const InputDecoration(
-                        labelText: 'Harga',
+                        labelText: 'Harga*',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Harga tidak boleh kosong';
+                          return 'Harga wajib diisi';
                         }
                         if (int.tryParse(value) == null) {
-                          return 'Harga harus angka';
+                          return 'Masukkan angka yang valid';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Input Stok Produk
+                    // Product Stock
                     TextFormField(
                       controller: _stockController,
                       decoration: const InputDecoration(
-                        labelText: 'Stok',
+                        labelText: 'Stok*',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Stok tidak boleh kosong';
+                          return 'Stok wajib diisi';
                         }
                         if (int.tryParse(value) == null) {
-                          return 'Stok harus angka';
+                          return 'Masukkan angka yang valid';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
-                    // Dropdown Kategori
+                    // Product Category
                     _isCategoryLoading
-                        ? const CircularProgressIndicator() // Tampilkan loading saat kategori dimuat
+                        ? const CircularProgressIndicator()
                         : DropdownButtonFormField<ProductCategory>(
+                            value: _selectedCategory,
                             decoration: const InputDecoration(
-                              labelText: 'Kategori Produk (Opsional)',
+                              labelText: 'Kategori Produk',
                               border: OutlineInputBorder(),
                             ),
-                            value: _selectedCategory,
-                            hint: const Text('Pilih Kategori'),
-                            onChanged: (ProductCategory? newValue) {
-                              setState(() {
-                                _selectedCategory = newValue;
-                              });
-                            },
-                            items: _categories.map((ProductCategory category) {
+                            items: _categories.map((category) {
                               return DropdownMenuItem<ProductCategory>(
                                 value: category,
                                 child: Text(category.name),
                               );
                             }).toList(),
-                            // Validator bisa ditambahkan jika kategori wajib
-                            // validator: (value) {
-                            //   if (value == null) {
-                            //     return 'Kategori tidak boleh kosong';
-                            //   }
-                            //   return null;
-                            // },
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedCategory = value;
+                              });
+                            },
                           ),
                     const SizedBox(height: 16),
 
-                    // Pemilihan dan Tampilan Gambar
+                    // Discount Amount
+                    TextFormField(
+                      controller: _discountAmountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Jumlah Diskon (Rp)',
+                        border: OutlineInputBorder(),
+                        hintText: 'Misal: 10000',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value != null &&
+                            value.isNotEmpty &&
+                            int.tryParse(value) == null) {
+                          return 'Masukkan angka yang valid';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Discount Type
+                    DropdownButtonFormField<int>(
+                      value: _selectedDiscountType,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipe Diskon',
+                        border: OutlineInputBorder(),
+                      ),
+                      hint: const Text('Pilih tipe diskon'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 0,
+                          child: Text('Pilih tipe diskon'),
+                        ),
+                        DropdownMenuItem(value: 1, child: Text('Persentase')),
+                        DropdownMenuItem(value: 2, child: Text('Nominal')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedDiscountType = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Discount Start Date
+                    TextFormField(
+                      controller: _discountStartController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mulai Diskon',
+                        border: OutlineInputBorder(),
+                        hintText: 'YYYY-MM-DD',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          _discountStartController.text =
+                              "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Discount End Date
+                    TextFormField(
+                      controller: _discountEndController,
+                      decoration: const InputDecoration(
+                        labelText: 'Berakhir Diskon',
+                        border: OutlineInputBorder(),
+                        hintText: 'YYYY-MM-DD',
+                      ),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          _discountEndController.text =
+                              "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                        }
+                      },
+                      validator: (value) {
+                        if (value != null &&
+                            value.isNotEmpty &&
+                            _discountStartController.text.isNotEmpty) {
+                          final start = DateTime.parse(
+                            _discountStartController.text,
+                          );
+                          final end = DateTime.parse(value);
+                          if (end.isBefore(start)) {
+                            return 'Tanggal berakhir harus setelah tanggal mulai';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Image Upload Section
+                    const Text(
+                      'Gambar Produk*',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     ElevatedButton.icon(
                       onPressed: _pickImage,
                       icon: const Icon(Icons.image),
                       label: const Text('Pilih Gambar Baru'),
                     ),
                     const SizedBox(height: 8),
-                    _imageFile != null // Jika ada gambar baru yang dipilih
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
+                    _imageFile != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
                             child: Image.file(
                               _imageFile!,
                               height: 150,
@@ -298,58 +419,60 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                               fit: BoxFit.cover,
                             ),
                           )
-                        : _currentImageUrl != null && _currentImageUrl!.isNotEmpty // Jika ada URL gambar lama
-                            ? Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Image.network(
-                                  // Asumsikan gambar disimpan di folder 'storage' di Laravel public
-                                  // Sesuaikan URL ini jika lokasi gambar berbeda
-                                  '${baseImageUrl}${_currentImageUrl!}',
-                                  
-                                  height: 150,
-                                  width: 150,
-                                  fit: BoxFit.cover,
-                                  // Handle error jika gambar tidak bisa dimuat
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(Icons.broken_image, size: 100),
-                                  // Optional: Tampilkan loading saat gambar diunduh
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Center(
-                                      child: CircularProgressIndicator(
-                                        value: loadingProgress.expectedTotalBytes != null
-                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                            : null,
-                                      ),
-                                    );
-                                  },
+                        : _currentImageUrl != null &&
+                              _currentImageUrl!.isNotEmpty
+                        ? ProductImage(
+                            imagePath: _currentImageUrl!,
+                            width: 150,
+                            height: 150,
+                            borderRadius: 8,
+                          )
+                        : Container(
+                            height: 150,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.image, size: 40, color: Colors.grey),
+                                SizedBox(height: 8),
+                                Text(
+                                  'No Image',
+                                  style: TextStyle(color: Colors.grey),
                                 ),
-                              )
-                            : const Padding( // Jika tidak ada gambar sama sekali
-                                padding: EdgeInsets.only(top: 8.0),
-                                child: Text('Tidak ada gambar produk.'),
-                              ),
+                              ],
+                            ),
+                          ),
                     const SizedBox(height: 24),
 
-                    // Tombol Submit
+                    // Submit Button
                     Center(
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _updateProduct, // Nonaktifkan tombol saat loading
+                        onPressed: _isLoading ? null : _updateProduct,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 15,
+                            horizontal: 32,
+                            vertical: 16,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white) // Tampilkan loading di tombol
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Text(
-                                'Simpan Perubahan',
-                                style: TextStyle(fontSize: 18),
+                                'SIMPAN PERUBAHAN',
+                                style: TextStyle(fontSize: 16),
                               ),
                       ),
                     ),

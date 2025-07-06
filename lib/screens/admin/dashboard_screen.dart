@@ -1,7 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:coffee_app/models/order.dart';
+import 'package:coffee_app/services/api_service.dart';
+import 'package:intl/intl.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late Future<List<Order>> _latestOrdersFuture;
+  final ApiService apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _latestOrdersFuture = _fetchLatestOrders();
+  }
+
+  Future<List<Order>> _fetchLatestOrders() async {
+    try {
+      final latestOrders = await apiService.fetchLatestOrders();
+      return latestOrders;
+    } catch (e) {
+      print('Error fetching latest orders: $e');
+      throw Exception('Gagal memuat pesanan terbaru: $e');
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return Colors.green[100]!;
+      case 'pending':
+        return Colors.orange[100]!;
+      case 'shipped':
+        return Colors.blue[100]!;
+      case 'delivered':
+        return Colors.purple[100]!;
+      case 'cancelled':
+        return Colors.red[100]!;
+      default:
+        return Colors.grey[100]!;
+    }
+  }
+
+  String _getReadableStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'Dibayar';
+      case 'pending':
+        return 'Tertunda';
+      case 'shipped':
+        return 'Dikirim';
+      case 'delivered':
+        return 'Selesai';
+      case 'cancelled':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +83,7 @@ class DashboardScreen extends StatelessWidget {
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Pesanan Terbaru',
+              'Pesanan Terbaru (5 Terakhir)',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
@@ -97,123 +158,160 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildRecentOrders(BuildContext context) {
-    final orders = [
-      {
-        'id': '#ORD-001',
-        'customer': 'John Doe',
-        'date': '24 Jun',
-        'amount': 'Rp1.250.000',
-        'status': 'Diproses',
-      },
-      {
-        'id': '#ORD-002',
-        'customer': 'Jane Smith',
-        'date': '23 Jun',
-        'amount': 'Rp750.000',
-        'status': 'Dikirim',
-      },
-      {
-        'id': '#ORD-003',
-        'customer': 'Robert Johnson',
-        'date': '22 Jun',
-        'amount': 'Rp2.100.000',
-        'status': 'Selesai',
-      },
-    ];
-
-    return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.of(context).size.width - 32,
-          ),
-          child: DataTable(
-            columnSpacing: 20,
-            dataRowHeight: 48,
-            columns: const [
-              DataColumn(
-                label: Text(
-                  'ID',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Pelanggan',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Tanggal',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Jumlah',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Status',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-            rows: orders.map((order) {
-              return DataRow(
-                cells: [
-                  DataCell(
-                    SizedBox(
-                      width: 80,
-                      child: Text(
-                        order['id']!,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+    return FutureBuilder<List<Order>>(
+      future: _latestOrdersFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return Card(
+            color: Colors.red[50],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error memuat pesanan terbaru: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 120,
-                      child: Text(
-                        order['customer']!,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _latestOrdersFuture = _fetchLatestOrders();
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.brown,
+                      foregroundColor: Colors.white,
                     ),
-                  ),
-                  DataCell(SizedBox(width: 60, child: Text(order['date']!))),
-                  DataCell(SizedBox(width: 100, child: Text(order['amount']!))),
-                  DataCell(
-                    Chip(
-                      label: Text(
-                        order['status']!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: _getStatusColor(order['status']!),
-                    ),
+                    child: const Text('Coba Lagi'),
                   ),
                 ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+              ),
+            ),
+          );
+        } else if (snapshot.hasData) {
+          final latestOrders = snapshot.data!;
+          if (latestOrders.isEmpty) {
+            return const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: Text('Belum ada pesanan terbaru.')),
+              ),
+            );
+          } else {
+            return Card(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: MediaQuery.of(context).size.width - 32,
+                  ),
+                  child: DataTable(
+                    columnSpacing: 20,
+                    dataRowHeight: 48,
+                    columns: const [
+                      DataColumn(
+                        label: Text(
+                          'ID',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Pelanggan',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Tanggal',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Jumlah',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Status',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                    rows: latestOrders.map((order) {
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: 80,
+                              child: Text(
+                                '#${order.id}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 120,
+                              child: Text(
+                                order.user.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 80,
+                              child: Text(order.formattedDate.split(',')[0]),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 100,
+                              child: Text(order.formattedPrice),
+                            ),
+                          ),
+                          DataCell(
+                            Chip(
+                              label: Text(
+                                _getReadableStatus(order.paymentStatus),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              backgroundColor: _getStatusColor(
+                                order.paymentStatus,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            );
+          }
+        } else {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: Text('Tidak ada data pesanan terbaru.')),
+            ),
+          );
+        }
+      },
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Diproses':
-        return Colors.orange[100]!;
-      case 'Dikirim':
-        return Colors.blue[100]!;
-      case 'Selesai':
-        return Colors.green[100]!;
-      default:
-        return Colors.grey[100]!;
-    }
   }
 }

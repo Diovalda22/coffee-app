@@ -72,7 +72,7 @@ class _OrderScreenState extends State<OrderScreen> {
           'color': Colors.orange.shade100,
           'textColor': Colors.orange.shade800,
           'icon': Icons.pending,
-          'text': 'Menunggu Pembayaran',
+          'text': 'Tertunda',
         };
         break;
       case 'paid':
@@ -352,7 +352,8 @@ class _OrderScreenState extends State<OrderScreen> {
                   ),
 
                   // Payment button for pending orders
-                  if (order.paymentStatus == 'pending' && !isCancelled) ...[
+                  if (order.paymentStatus == 'pending' &&
+                      order.deletedAt == null) ...[
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -392,8 +393,53 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   Future<void> _handlePayment(Order order) async {
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Pembayaran'),
+        content: Text(
+          'Anda akan diarahkan ke halaman pembayaran untuk pesanan #${order.id}.\n\nTotal: Rp${currencyFormat.format(order.totalPrice)}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Lanjutkan',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
       final redirectUrl = await api.repayOrder(order.id);
+
+      // Hide loading indicator
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
       if (redirectUrl != null && mounted) {
         final result = await Navigator.push(
           context,
@@ -403,12 +449,48 @@ class _OrderScreenState extends State<OrderScreen> {
         );
 
         if (result == 'paid') {
+          // Refresh orders after successful payment
           _fetchOrders();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Pembayaran berhasil!'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          }
+        } else if (result == 'failed') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Pembayaran dibatalkan atau gagal'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          _showSnackbar('Tidak dapat memulai pembayaran');
         }
       }
     } catch (e) {
-      if (!mounted) return;
-      _showSnackbar('Gagal memproses pembayaran: $e');
+      // Hide loading indicator if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (mounted) {
+        _showSnackbar('Gagal memproses pembayaran: $e');
+      }
     }
   }
 
