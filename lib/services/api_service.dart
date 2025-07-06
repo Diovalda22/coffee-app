@@ -110,6 +110,27 @@ class ApiService {
     }
   }
 
+  Future<Map<String, List<Product>>> fetchGroupedProducts() async {
+    final headers = await _getAuthHeaders();
+    final uri = Uri.parse('$baseUrl/user/product/grouped');
+    final response = await http.get(uri, headers: headers);
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+      final Map<String, dynamic> data = jsonData['data'];
+      final Map<String, List<Product>> result = {};
+      data.forEach((key, value) {
+        if (value is List) {
+          result[key] = value.map((e) => Product.fromJson(e)).toList();
+        }
+      });
+      return result;
+    } else {
+      throw Exception(
+        'Failed to fetch grouped products: ${response.statusCode}',
+      );
+    }
+  }
+
   Future<List<Product>> fetchPromotedProducts() async {
     final headers = await _getAuthHeaders();
 

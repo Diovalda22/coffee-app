@@ -5,6 +5,7 @@ import 'package:coffee_app/screens/user/product_detail_screen.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/product.dart';
+import '../../models/product_category.dart';
 import '../../helper/general_helper.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Product> promotedProducts = [];
   List<Product> allProducts = [];
   List<Product> filteredProducts = [];
+  Map<String, List<Product>> groupedProducts = {};
   TextEditingController searchController = TextEditingController();
 
   int _selectedIndex = 0;
@@ -75,12 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = true);
     try {
       final fetchedPromoted = await api.fetchPromotedProducts();
-      final fetchedAll = await api.fetchProducts();
-
+      final grouped = await api.fetchGroupedProducts();
       setState(() {
         promotedProducts = fetchedPromoted;
-        allProducts = fetchedAll;
-        filteredProducts = fetchedAll;
+        groupedProducts = grouped;
         isLoading = false;
       });
     } catch (e) {
@@ -236,7 +236,37 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
+                    if (product.isPromoted == 1)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade700,
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 2,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Best Seller',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
                     // <<<<< Diperbaiki: penulisan `if` setelah Container ditutup
                     if (isOutOfStock)
                       Positioned.fill(
@@ -377,7 +407,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeContent() {
     final isSearching = searchController.text.isNotEmpty;
-
+    // Untuk pencarian, flatten semua produk dari grouped
+    final allGroupedProducts = groupedProducts.values.expand((x) => x).toList();
+    final filtered = isSearching
+        ? allGroupedProducts
+              .where(
+                (product) => product.name.toLowerCase().contains(
+                  searchController.text.toLowerCase(),
+                ),
+              )
+              .toList()
+        : null;
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: CustomScrollView(
@@ -392,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: TextField(
                     controller: searchController,
-                    onChanged: filterProducts,
+                    onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: 'Cari produk kopi...',
                       prefixIcon: const Icon(
@@ -404,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 searchController.clear();
-                                filterProducts('');
+                                setState(() {});
                               },
                             )
                           : null,
@@ -429,8 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverList(
               delegate: SliverChildListDelegate([
                 if (isSearching)
-                  // Show search results only
-                  filteredProducts.isEmpty
+                  filtered == null || filtered.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(32),
                           child: Column(
@@ -460,13 +499,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         )
-                      : _buildSection('Hasil Pencarian', filteredProducts)
+                      : _buildSection('Hasil Pencarian', filtered)
                 else
-                  // Show normal sections when not searching
                   Column(
                     children: [
                       _buildSection('Produk Unggulan', promotedProducts),
-                      _buildSection('Semua Produk', filteredProducts),
+                      if ((groupedProducts['Minuman'] ?? []).isNotEmpty)
+                        _buildSection('Minuman', groupedProducts['Minuman']!),
+                      if ((groupedProducts['Makanan Utama'] ?? []).isNotEmpty)
+                        _buildSection(
+                          'Makanan Utama',
+                          groupedProducts['Makanan Utama']!,
+                        ),
+                      if ((groupedProducts['Roti'] ?? []).isNotEmpty)
+                        _buildSection('Roti', groupedProducts['Roti']!),
+                      if ((groupedProducts['Makanan Ringan'] ?? []).isNotEmpty)
+                        _buildSection(
+                          'Makanan Ringan',
+                          groupedProducts['Makanan Ringan']!,
+                        ),
                     ],
                   ),
                 const SizedBox(height: 16),
