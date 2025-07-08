@@ -500,21 +500,14 @@ class ApiService {
     }
 
     // Field diskon
-    if (discountAmount != null) {
-      request.fields['discount_amount'] = discountAmount.toString();
-    }
-
-    if (discountType != null) {
-      request.fields['discount_type'] = discountType.toString();
-    }
-
-    if (discountStart != null) {
-      request.fields['discount_start'] = discountStart;
-    }
-
-    if (discountEnd != null) {
-      request.fields['discount_end'] = discountEnd;
-    }
+    request.fields['discount_amount'] = discountAmount?.toString() ?? '';
+    request.fields['discount_type'] = discountType?.toString() ?? '';
+    request.fields['discount_start'] =
+        (discountStart != null && discountStart.isNotEmpty)
+        ? discountStart
+        : '';
+    request.fields['discount_end'] =
+        (discountEnd != null && discountEnd.isNotEmpty) ? discountEnd : '';
 
     // Tambahkan file gambar
     request.files.add(
@@ -587,21 +580,14 @@ class ApiService {
     }
 
     // Discount fields
-    if (discountAmount != null) {
-      request.fields['discount_amount'] = discountAmount.toString();
-    }
-
-    if (discountType != null) {
-      request.fields['discount_type'] = discountType.toString();
-    }
-
-    if (discountStart != null && discountStart.isNotEmpty) {
-      request.fields['discount_start'] = discountStart;
-    }
-
-    if (discountEnd != null && discountEnd.isNotEmpty) {
-      request.fields['discount_end'] = discountEnd;
-    }
+    request.fields['discount_amount'] = discountAmount?.toString() ?? '';
+    request.fields['discount_type'] = discountType?.toString() ?? '';
+    request.fields['discount_start'] =
+        (discountStart != null && discountStart.isNotEmpty)
+        ? discountStart
+        : '';
+    request.fields['discount_end'] =
+        (discountEnd != null && discountEnd.isNotEmpty) ? discountEnd : '';
 
     // Image file
     if (imageFile != null) {
@@ -795,6 +781,55 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Gagal memuat pesanan terbaru: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? email,
+    String? password,
+    String? currentPassword,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final Map<String, dynamic> body = {};
+    if (name != null) body['name'] = name;
+    if (email != null) body['email'] = email;
+    if (password != null) body['password'] = password;
+    if (password != null && currentPassword != null) {
+      body['current_password'] = currentPassword;
+      body['password_confirmation'] = password;
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/user/profile'),
+      headers: headers,
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      // Update local storage jika perlu
+      final prefs = await SharedPreferences.getInstance();
+      if (data['data'] != null) {
+        if (data['data']['name'] != null) {
+          await prefs.setString('name', data['data']['name']);
+        }
+        if (data['data']['email'] != null) {
+          await prefs.setString('email', data['data']['email']);
+        }
+      }
+      return {
+        'success': true,
+        'data': data['data'],
+        'message': data['message'],
+      };
+    } else {
+      final data = json.decode(response.body);
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal memperbarui profil',
+        'status_code': response.statusCode,
+      };
     }
   }
 

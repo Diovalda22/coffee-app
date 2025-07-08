@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../models/product_category.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class ProductAddScreen extends StatefulWidget {
   const ProductAddScreen({super.key});
@@ -68,9 +69,14 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
     } catch (e) {
       print('Error loading categories: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal memuat kategori: $e')));
+        Flushbar(
+          message: 'Gagal memuat kategori: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
       setState(() {
         _isCategoryLoading = false;
@@ -95,9 +101,14 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
     if (_formKey.currentState!.validate()) {
       if (_imageFile == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Harap pilih gambar produk.')),
-          );
+          Flushbar(
+            message: 'Harap pilih gambar produk.',
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
         }
         return;
       }
@@ -116,8 +127,8 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
           imageFile: _imageFile!,
           discountAmount: _discountAmountController.text.isNotEmpty
               ? int.parse(_discountAmountController.text)
-              : null,
-          discountType: _selectedDiscountType,
+              : 0,
+          discountType: _selectedDiscountType ?? 0,
           discountStart: _discountStartController.text.isNotEmpty
               ? _discountStartController.text
               : null,
@@ -127,23 +138,27 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Produk berhasil ditambahkan!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          await Flushbar(
+            message: 'Produk berhasil ditambahkan!',
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
           Navigator.of(context).pop(true);
         }
       } catch (e) {
         print('Error adding product: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menambahkan produk: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Flushbar(
+            message: 'Gagal menambahkan produk: $e',
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
         }
       } finally {
         setState(() {
@@ -297,11 +312,11 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                         });
                       },
                       items: const [
+                        DropdownMenuItem<int>(value: 1, child: Text('Nominal')),
                         DropdownMenuItem<int>(
-                          value: 1,
+                          value: 2,
                           child: Text('Persentase'),
                         ),
-                        DropdownMenuItem<int>(value: 2, child: Text('Nominal')),
                       ],
                     ),
                     const SizedBox(height: 16),

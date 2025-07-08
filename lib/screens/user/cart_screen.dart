@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/cart.dart';
 import '../../services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -31,16 +32,18 @@ class _CartScreenState extends State<CartScreen> {
       setState(() {
         carts = data;
         isLoading = false;
-        selectedItems.clear(); 
+        selectedItems.clear();
       });
     } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat keranjang: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Gagal memuat keranjang: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     }
   }
 
@@ -49,12 +52,14 @@ class _CartScreenState extends State<CartScreen> {
     if (success) {
       loadCart();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal memperbarui jumlah'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Gagal memperbarui jumlah',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     }
   }
 
@@ -63,12 +68,14 @@ class _CartScreenState extends State<CartScreen> {
     if (success) {
       loadCart();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal menghapus item'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Gagal menghapus item',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     }
   }
 
@@ -101,27 +108,31 @@ class _CartScreenState extends State<CartScreen> {
         setState(() => isLoading = true);
 
         final itemsToDelete = selectedItems.toList();
-        print('Items yang akan dihapus: $itemsToDelete'); 
+        print('Items yang akan dihapus: $itemsToDelete');
 
         final success = await api.removeMultipleCartItems(itemsToDelete);
 
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${itemsToDelete.length} item berhasil dihapus'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
+          Flushbar(
+            message: '${itemsToDelete.length} item berhasil dihapus',
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
           await loadCart();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus item: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        print('Error saat menghapus: $e'); 
+        Flushbar(
+          message: 'Gagal menghapus item: ${e.toString()}',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
+        print('Error saat menghapus: $e');
       } finally {
         setState(() {
           isLoading = false;
@@ -156,12 +167,14 @@ class _CartScreenState extends State<CartScreen> {
       if (success) {
         loadCart();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal mengosongkan keranjang'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: 'Gagal mengosongkan keranjang',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
@@ -184,9 +197,14 @@ class _CartScreenState extends State<CartScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      Flushbar(
+        message: 'Error: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     } finally {
       setState(() => isOrdering = false);
     }
@@ -492,7 +510,11 @@ class _CartScreenState extends State<CartScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Icon(Icons.shopping_bag_outlined, size: 20),
+                          : const Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 20,
+                              color: Colors.white,
+                            ),
                       label: const Text(
                         'Order Now',
                         style: TextStyle(color: Colors.white),

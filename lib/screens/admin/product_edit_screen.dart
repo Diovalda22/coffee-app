@@ -5,6 +5,7 @@ import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../services/api_service.dart';
 import 'package:coffee_app/widgets/product_image.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class ProductEditScreen extends StatefulWidget {
   final Product product;
@@ -111,9 +112,14 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     } catch (e) {
       setState(() => _isCategoryLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal memuat kategori: $e')));
+        Flushbar(
+          message: 'Gagal memuat kategori: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
@@ -146,8 +152,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         imageFile: _imageFile,
         discountAmount: _discountAmountController.text.isNotEmpty
             ? int.parse(_discountAmountController.text)
-            : null,
-        discountType: _selectedDiscountType,
+            : 0,
+        discountType: _selectedDiscountType ?? 0,
         discountStart: _discountStartController.text.isNotEmpty
             ? _discountStartController.text
             : null,
@@ -157,22 +163,30 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Produk berhasil diperbarui!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
+        Flushbar(
+          message: 'Produk berhasil diperbarui!',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+          onStatusChanged: (status) {
+            if (status == FlushbarStatus.DISMISSED && mounted) {
+              Navigator.pop(context, true);
+            }
+          },
+        ).show(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memperbarui produk: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: 'Gagal memperbarui produk: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     } finally {
       if (mounted) {
@@ -323,8 +337,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                           value: 0,
                           child: Text('Pilih tipe diskon'),
                         ),
-                        DropdownMenuItem(value: 1, child: Text('Persentase')),
-                        DropdownMenuItem(value: 2, child: Text('Nominal')),
+                        DropdownMenuItem(value: 1, child: Text('Nominal')),
+                        DropdownMenuItem(value: 2, child: Text('Persentase')),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -391,6 +405,27 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tombol Hapus Diskon
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _discountAmountController.text = '0';
+                            _selectedDiscountType = 0;
+                            _discountStartController.clear();
+                            _discountEndController.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        label: const Text(
+                          'Hapus Diskon',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
 

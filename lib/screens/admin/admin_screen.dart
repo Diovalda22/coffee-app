@@ -11,6 +11,7 @@ import 'package:coffee_app/services/api_service.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 import '../../models/dashboard_stats.dart';
 
@@ -47,9 +48,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             (route) => false,
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logout berhasil (offline)')),
-          );
+          await Flushbar(
+            message: 'Logout berhasil (offline)',
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/login',
@@ -59,9 +65,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal logout: $e')));
+        await Flushbar(
+          message: 'Gagal logout: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
@@ -245,10 +256,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Colors.green[100]!;
       case 'pending':
         return Colors.orange[100]!;
-      case 'shipped':
-        return Colors.blue[100]!;
-      case 'delivered':
-        return Colors.purple[100]!;
       case 'cancelled':
         return Colors.red[100]!;
       default:
@@ -262,10 +269,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return 'Dibayar';
       case 'pending':
         return 'Tertunda';
-      case 'shipped':
-        return 'Dikirim';
-      case 'delivered':
-        return 'Selesai';
       case 'cancelled':
         return 'Dibatalkan';
       default:
@@ -737,9 +740,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load products: $e')));
+        await Flushbar(
+          message: 'Failed to load products: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
       throw Exception('Failed to load products: $e');
     }
@@ -800,9 +808,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
         categoryId: _selectedCategoryId,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Daftar produk diperbarui.')),
-        );
+        await Flushbar(
+          message: 'Daftar produk diperbarui.',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
@@ -833,9 +846,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     // Proceed with deletion only if confirmed
     if (confirm == true) {
       // Show a temporary loading snackbar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Menghapus produk "$productName"...')),
-      );
+      await Flushbar(
+        message: 'Menghapus produk "$productName"...',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
 
       try {
         await apiService.deleteProduct(
@@ -848,22 +866,26 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           categoryId: _selectedCategoryId,
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Produk "$productName" berhasil dihapus!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          await Flushbar(
+            message: 'Produk "$productName" berhasil dihapus!',
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
         }
       } catch (e) {
         print('Error deleting product: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menghapus produk "$productName": $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          await Flushbar(
+            message: 'Gagal menghapus produk "$productName": $e',
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
         }
       }
     }
@@ -876,12 +898,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       final statusText = newStatus ? 'dipromosikan' : 'tidak dipromosikan';
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Produk berhasil $statusText'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        await Flushbar(
+          message: 'Produk berhasil $statusText',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
       // Refresh with current search parameters
       _fetchProducts(
@@ -890,12 +914,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengubah status promosi: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        await Flushbar(
+          message: 'Gagal mengubah status promosi: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
@@ -1196,7 +1222,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                               if (product.discountStart != null &&
                                   product.discountEnd != null)
                                 Text(
-                                  '${DateFormat('dd/MM').format(DateTime.parse(product.discountStart!))} - ${DateFormat('dd/MM').format(DateTime.parse(product.discountEnd!))}',
+                                  product.isDiscountExpired
+                                      ? 'Diskon expired'
+                                      : '${DateFormat('dd/MM').format(DateTime.parse(product.discountStart!))} - ${DateFormat('dd/MM').format(DateTime.parse(product.discountEnd!))}',
                                   style: const TextStyle(
                                     color: Colors.orange,
                                     fontSize: 10,
@@ -1318,9 +1346,14 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
       });
       print('DEBUG: Error fetching categories: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat kategori: ${e.toString()}')),
-        );
+        await Flushbar(
+          message: 'Gagal memuat kategori: ${e.toString()}',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     } finally {
       setState(() {
@@ -1362,11 +1395,14 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
               onPressed: () async {
                 final String name = nameController.text.trim();
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Nama kategori tidak boleh kosong'),
-                    ),
-                  );
+                  await Flushbar(
+                    message: 'Nama kategori tidak boleh kosong',
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 2),
+                    flushbarPosition: FlushbarPosition.TOP,
+                    margin: const EdgeInsets.all(8),
+                    borderRadius: BorderRadius.circular(8),
+                  ).show(context);
                   return;
                 }
 
@@ -1381,20 +1417,25 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                       name,
                     );
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Kategori berhasil diperbarui!'),
-                        ),
-                      );
+                      await Flushbar(
+                        message: 'Kategori berhasil diperbarui!',
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                        flushbarPosition: FlushbarPosition.TOP,
+                        margin: const EdgeInsets.all(8),
+                        borderRadius: BorderRadius.circular(8),
+                      ).show(context);
                     }
                   } else {
                     await _apiService.createProductCategory(name);
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Kategori berhasil ditambahkan!'),
-                        ),
-                      );
+                      await Flushbar(
+                        message: 'Kategori berhasil ditambahkan!',
+                        backgroundColor: Colors.green,
+                        flushbarPosition: FlushbarPosition.TOP,
+                        margin: const EdgeInsets.all(8),
+                        borderRadius: BorderRadius.circular(8),
+                      ).show(context);
                     }
                   }
                   if (mounted) Navigator.of(context).pop(); // Tutup dialog
@@ -1402,9 +1443,14 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 } catch (e) {
                   print('DEBUG: Error in category operation: $e');
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal: ${e.toString()}')),
-                    );
+                    await Flushbar(
+                      message: 'Gagal: ${e.toString()}',
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 2),
+                      flushbarPosition: FlushbarPosition.TOP,
+                      margin: const EdgeInsets.all(8),
+                      borderRadius: BorderRadius.circular(8),
+                    ).show(context);
                   }
                 } finally {
                   setState(() {
@@ -1452,22 +1498,28 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 try {
                   await _apiService.deleteProductCategory(categoryId);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Kategori berhasil dihapus!'),
-                      ),
-                    );
+                    await Flushbar(
+                      message: 'Kategori berhasil dihapus!',
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 2),
+                      flushbarPosition: FlushbarPosition.TOP,
+                      margin: const EdgeInsets.all(8),
+                      borderRadius: BorderRadius.circular(8),
+                    ).show(context);
                   }
                   if (mounted) Navigator.of(context).pop(); // Tutup dialog
                   _fetchCategories(); // Refresh daftar
                 } catch (e) {
                   print('DEBUG: Error deleting category: $e');
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal menghapus: ${e.toString()}'),
-                      ),
-                    );
+                    await Flushbar(
+                      message: 'Gagal menghapus: ${e.toString()}',
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 2),
+                      flushbarPosition: FlushbarPosition.TOP,
+                      margin: const EdgeInsets.all(8),
+                      borderRadius: BorderRadius.circular(8),
+                    ).show(context);
                   }
                 } finally {
                   setState(() {
@@ -1606,8 +1658,6 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
     'Semua',
     'pending', // Ini harus cocok dengan nilai 'payment_status' di JSON Anda
     'paid',
-    'shipped',
-    'delivered',
     'cancelled', // Tambahkan status lain jika ada di backend Anda
   ];
 
@@ -1632,9 +1682,14 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
       });
       print('DEBUG: Error fetching orders: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat pesanan: ${e.toString()}')),
-        );
+        await Flushbar(
+          message: 'Gagal memuat pesanan: ${e.toString()}',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     } finally {
       setState(() {
@@ -1663,10 +1718,6 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
         return Colors.green[100]!;
       case 'pending':
         return Colors.orange[100]!;
-      case 'shipped':
-        return Colors.blue[100]!;
-      case 'delivered':
-        return Colors.purple[100]!;
       case 'cancelled':
         return Colors.red[100]!;
       default:
@@ -1681,10 +1732,6 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
         return 'Dibayar';
       case 'pending':
         return 'Tertunda';
-      case 'shipped':
-        return 'Dikirim';
-      case 'delivered':
-        return 'Selesai';
       case 'cancelled':
         return 'Dibatalkan';
       default:
@@ -1891,17 +1938,3 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
     );
   }
 }
-
-  // Color _getStatusColor(String status) {
-  //   switch (status) {
-  //     case 'Diproses':
-  //       return Colors.orange[100]!;
-  //     case 'Dikirim':
-  //       return Colors.blue[100]!;
-  //     case 'Selesai':
-  //       return Colors.green[100]!;
-  //     default:
-  //       return Colors.grey[100]!;
-  //   }
-  // }
-

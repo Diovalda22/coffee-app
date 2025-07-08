@@ -4,6 +4,7 @@ import 'dashboard_screen.dart';
 import 'product_screen.dart';
 import 'category_screen.dart';
 import 'order_screen.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -24,7 +25,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ];
 
   Future<void> _handleLogout(BuildContext context) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -49,23 +49,29 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       try {
         final success = await _apiService.logout();
         if (success) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('Logout berhasil')),
-          );
+          Flushbar(
+            message: 'Logout berhasil',
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.green,
+          ).show(context);
           // Navigate to login screen and remove all previous routes
           navigator.pushNamedAndRemoveUntil(
             '/login',
             (Route<dynamic> route) => false,
           );
         } else {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('Logout gagal, silahkan coba lagi')),
-          );
+          Flushbar(
+            message: 'Logout gagal, silahkan coba lagi',
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ).show(context);
         }
       } catch (e) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        Flushbar(
+          message: 'Error: ${e.toString()}',
+          duration: const Duration(seconds: 3),
+          backgroundColor: Colors.orange,
+        ).show(context);
       }
     }
   }

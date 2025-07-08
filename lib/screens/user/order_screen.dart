@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/order.dart';
 import '../../services/api_service.dart';
 import 'payment_screen.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({Key? key}) : super(key: key);
@@ -48,14 +49,13 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    Flushbar(
+      message: message,
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 3),
+      flushbarPosition: FlushbarPosition.TOP,
+      borderRadius: BorderRadius.circular(10),
+    ).show(context);
   }
 
   Widget _buildStatusChip(String status) {
@@ -452,29 +452,23 @@ class _OrderScreenState extends State<OrderScreen> {
           // Refresh orders after successful payment
           _fetchOrders();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Pembayaran berhasil!'),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
+            Flushbar(
+              message: 'Pembayaran berhasil!',
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              flushbarPosition: FlushbarPosition.TOP,
+              borderRadius: BorderRadius.circular(10),
+            ).show(context);
           }
         } else if (result == 'failed') {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Pembayaran dibatalkan atau gagal'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
+            Flushbar(
+              message: 'Pembayaran dibatalkan atau gagal',
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+              flushbarPosition: FlushbarPosition.TOP,
+              borderRadius: BorderRadius.circular(10),
+            ).show(context);
           }
         }
       } else {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -30,22 +31,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registrasi berhasil! Silakan login.'),
-          backgroundColor: Colors.green,
+      Flushbar(
+        message: 'Registrasi berhasil! Silakan login.',
+        backgroundColor: Colors.green,
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(8),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(15),
+        backgroundGradient: const LinearGradient(
+          colors: [Colors.green, Colors.lightGreen],
         ),
-      );
+      ).show(context);
       Future.delayed(const Duration(seconds: 1), () {
         Navigator.pushReplacementNamed(context, '/login');
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registrasi gagal'),
-          backgroundColor: Colors.redAccent,
+      Flushbar(
+        message: 'Registrasi gagal',
+        backgroundColor: Colors.redAccent,
+        icon: const Icon(Icons.error, color: Colors.white),
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(8),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(15),
+        backgroundGradient: const LinearGradient(
+          colors: [Colors.red, Colors.redAccent],
         ),
-      );
+      ).show(context);
     }
   }
 

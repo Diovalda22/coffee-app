@@ -32,18 +32,6 @@ class OrderManagementScreen extends StatelessWidget {
                   selected: false,
                   onSelected: (_) {},
                 ),
-                const SizedBox(width: 6),
-                FilterChip(
-                  label: const Text('Dikirim'),
-                  selected: false,
-                  onSelected: (_) {},
-                ),
-                const SizedBox(width: 6),
-                FilterChip(
-                  label: const Text('Selesai'),
-                  selected: false,
-                  onSelected: (_) {},
-                ),
               ],
             ),
           ),
@@ -52,7 +40,7 @@ class OrderManagementScreen extends StatelessWidget {
             child: ListView.builder(
               itemCount: 15,
               itemBuilder: (context, index) {
-                final status = ['Diproses', 'Dikirim', 'Selesai'][index % 3];
+                final status = ['Diproses'][index % 1];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -107,10 +95,6 @@ class OrderManagementScreen extends StatelessWidget {
     switch (status) {
       case 'Diproses':
         return Colors.orange[100]!;
-      case 'Dikirim':
-        return Colors.blue[100]!;
-      case 'Selesai':
-        return Colors.green[100]!;
       default:
         return Colors.grey[100]!;
     }

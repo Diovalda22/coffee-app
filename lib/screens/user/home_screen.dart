@@ -8,6 +8,8 @@ import '../../models/product.dart';
 import '../../models/product_category.dart';
 import '../../helper/general_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:coffee_app/screens/user/edit_profile_screen.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -85,13 +87,15 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat produk: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      Flushbar(
+        message: 'Gagal memuat produk: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(8),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(15),
+      ).show(context);
     }
   }
 
@@ -106,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 3) {
+    if (index == 4) {
       _showLogoutConfirmation();
     } else {
       setState(() {
@@ -120,12 +124,15 @@ class _HomeScreenState extends State<HomeScreen> {
       await api.logout();
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saat logout: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      Flushbar(
+        message: 'Error saat logout: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(8),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(15),
+      ).show(context);
     }
   }
 
@@ -356,6 +363,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : const Color(0xFF5D4037),
                           ),
                         ),
+                        if (product.discountStart != null &&
+                            product.discountEnd != null)
+                          Text(
+                            product.isDiscountExpired
+                                ? 'Diskon expired'
+                                : '${DateFormat('dd MMM').format(DateTime.parse(product.discountStart!))} - ${DateFormat('dd MMM').format(DateTime.parse(product.discountEnd!))}',
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -539,6 +558,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const CartScreen();
       case 2:
         return const OrderScreen();
+      case 3:
+        return const EditProfileScreen();
       default:
         return const Center(child: Text('Unknown'));
     }
@@ -632,8 +653,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : null,
               child: Icon(
-                Icons.logout,
+                Icons.person_outline,
                 color: _selectedIndex == 3 ? Colors.white : Colors.brown[300],
+              ),
+            ),
+            label: 'Profil',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: _selectedIndex == 4
+                  ? BoxDecoration(
+                      color: const Color(0xFF4E342E),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Icon(
+                Icons.logout,
+                color: _selectedIndex == 4 ? Colors.white : Colors.brown[300],
               ),
             ),
             label: 'Keluar',

@@ -84,4 +84,16 @@ class Product {
       return false;
     }
   }
+
+  // Helper method to check if discount is expired
+  bool get isDiscountExpired {
+    if (discountEnd == null) return false;
+    try {
+      final now = DateTime.now();
+      final endDate = DateTime.parse(discountEnd!);
+      return now.isAfter(endDate);
+    } catch (e) {
+      return false;
+    }
+  }
 }

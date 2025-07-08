@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../services/api_service.dart';
 import 'package:coffee_app/widgets/product_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
@@ -69,15 +70,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (e) {
       print('DEBUG: Error fetching product detail: $e');
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat detail produk: $e'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      Flushbar(
+        message: 'Gagal memuat detail produk: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     }
   }
 
@@ -169,12 +169,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
         if (response['success'] == true) {
           await fetchProductDetail();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Ulasan berhasil dihapus'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          Flushbar(
+            message: response['message'] ?? 'Ulasan berhasil dihapus',
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            flushbarPosition: FlushbarPosition.TOP,
+            margin: const EdgeInsets.all(8),
+            borderRadius: BorderRadius.circular(8),
+          ).show(context);
 
           // Notify parent screen to reload
           if (mounted && widget.onReviewSubmitted != null) {
@@ -184,26 +186,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           throw Exception(response['message'] ?? 'Gagal menghapus ulasan');
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: 'Error: $e',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
       }
     }
   }
 
   Future<void> _submitReview() async {
     if (_selectedRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap beri rating terlebih dahulu'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Harap beri rating terlebih dahulu',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
       return;
     }
 
@@ -238,12 +242,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           _isEditingReview = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Ulasan berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Flushbar(
+          message: response['message'] ?? 'Ulasan berhasil disimpan',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          flushbarPosition: FlushbarPosition.TOP,
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
 
         // Notify parent screen to reload
         if (mounted && widget.onReviewSubmitted != null) {
@@ -254,13 +260,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     } catch (e) {
       print('DEBUG: Error submitting review: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Error: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+        flushbarPosition: FlushbarPosition.TOP,
+        margin: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+      ).show(context);
     }
   }
 
@@ -432,7 +439,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Diskon berlaku: ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_start']))} - ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_end']))}',
+                                      DateTime.now().isAfter(
+                                            DateTime.parse(
+                                              product!['discount_end'],
+                                            ),
+                                          )
+                                          ? 'Diskon expired'
+                                          : 'Diskon berlaku: ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_start']))} - ${DateFormat('dd MMM yyyy').format(DateTime.parse(product!['discount_end']))}',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
                                             color: Colors.grey[600],
@@ -731,29 +744,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         try {
                           await api.addToCart(widget.productId, _quantity);
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'Produk berhasil ditambahkan ke keranjang',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: Colors.green,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
+                          Flushbar(
+                            message: 'Produk berhasil ditambahkan ke keranjang',
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 2),
+                            flushbarPosition: FlushbarPosition.TOP,
+                            margin: const EdgeInsets.all(8),
+                            borderRadius: BorderRadius.circular(8),
+                          ).show(context);
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString()),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: Colors.red,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
+                          Flushbar(
+                            message: e.toString(),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 2),
+                            flushbarPosition: FlushbarPosition.TOP,
+                            margin: const EdgeInsets.all(8),
+                            borderRadius: BorderRadius.circular(8),
+                          ).show(context);
                         }
                       },
                       style: ElevatedButton.styleFrom(
