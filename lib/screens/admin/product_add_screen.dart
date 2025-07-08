@@ -259,7 +259,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                         ? const CircularProgressIndicator()
                         : DropdownButtonFormField<ProductCategory>(
                             decoration: const InputDecoration(
-                              labelText: 'Kategori Produk (Opsional)',
+                              labelText: 'Kategori Produk',
                               border: OutlineInputBorder(),
                             ),
                             value: _selectedCategory,

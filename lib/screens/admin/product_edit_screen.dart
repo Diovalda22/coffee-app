@@ -287,7 +287,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         : DropdownButtonFormField<ProductCategory>(
                             value: _selectedCategory,
                             decoration: const InputDecoration(
-                              labelText: 'Kategori Produk',
+                              labelText: 'ri Produk',
                               border: OutlineInputBorder(),
                             ),
                             items: _categories.map((category) {

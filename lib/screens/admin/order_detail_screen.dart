@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/order.dart'; // Sesuaikan path jika Order model Anda ada di tempat lain
+import '../../widgets/product_image.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final Order order; // Objek Order yang akan ditampilkan detailnya
@@ -198,20 +199,12 @@ class OrderDetailScreen extends StatelessWidget {
                                   color: Colors.grey[200],
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child:
-                                    detail.product.imageUrl != null &&
-                                        detail.product.imageUrl!.isNotEmpty
-                                    ? Image.network(
-                                        'https://example.com/storage/${detail.product.imageUrl}', // Ganti dengan BASE_URL gambar Anda
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const Icon(Icons.broken_image),
-                                      )
-                                    : const Icon(
-                                        Icons.image_not_supported,
-                                        color: Colors.grey,
-                                      ),
+                                child: ProductImage(
+                                  imagePath: detail.product.imageUrl ?? '',
+                                  width: 60,
+                                  height: 60,
+                                  borderRadius: 8,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
