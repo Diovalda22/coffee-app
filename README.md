@@ -19,7 +19,7 @@ Sebelum memulai, pastikan perangkat Anda sudah terinstall komponen berikut denga
 
 | Komponen         | Versi Minimal            | Link Download                                                                                      |
 | :--------------- | :----------------------- | :------------------------------------------------------------------------------------------------- |
-| **Flutter SDK**  | `3.29.0` (Stable)        | [Download Flutter](https://docs.flutter.dev/get-started/install)                                   |
+| **Flutter SDK**  | `3.29.0` (Stable)        | [Download Flutter](https://docs.flutter.dev/install/archive)                                       |
 | **Dart SDK**     | `3.7.0`                  | [Download Dart](https://dart.dev/get-dart)                                                         |
 | **PHP**          | `^8.2`                   | [Download PHP](https://www.php.net/downloads)                                                      |
 | **Composer**     | `Latest`                 | [Download Composer](https://getcomposer.org/download/)                                             |
@@ -83,11 +83,15 @@ Sebelum memulai, pastikan perangkat Anda sudah terinstall komponen berikut denga
     ```env
     API_BASE_URL=http://localhost:8000/api
     ```
-4.  **Konfigurasi API URL (Manual):**
-    Buka `lib/constants.dart` atau file konfigurasi terkait dan sesuaikan `baseUrl`:
-    - **Emulator Android:** `http://10.0.2.2:8000/api`
-    - **Chrome / Lokal:** `http://localhost:8000/api`
-    - **Physical Device:** Gunakan IP Private Laptop Anda.
+4.  **Konfigurasi API URL:**
+    Aplikasi menggunakan file `.env` untuk konfigurasi domain. Buat file `.env` di root folder (sejajar dengan `pubspec.yaml`) dan sesuaikan `BASE_DOMAIN`:
+    - **Emulator Android:** `BASE_DOMAIN=http://10.0.2.2:8000`
+    - **Chrome / Desktop:** `BASE_DOMAIN=http://localhost:8000`
+    - **Physical Device:** Gunakan IP Laptop Anda (contoh: `BASE_DOMAIN=http://192.168.1.5:8000`)
+
+    > [!NOTE]  
+    > Nilai ini akan diproses di [lib/helper/general_helper.dart](file:///d:/_Workspaces/Project%20lain/Coffee%20App%20Project/coffee-app/lib/helper/general_helper.dart) untuk menghasilkan `baseUrl`.
+
 5.  Jalankan aplikasi:
     ```bash
     flutter run
