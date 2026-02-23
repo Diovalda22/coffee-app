@@ -5,6 +5,7 @@ Dokumentasi ini dibuat untuk mempermudah proses setup lingkungan pengembangan (d
 ---
 
 ## 🛠 Tech Stack
+
 - **Frontend:** Flutter (Dart)
 - **Backend:** Laravel (PHP)
 - **Database:** MySQL
@@ -13,47 +14,54 @@ Dokumentasi ini dibuat untuk mempermudah proses setup lingkungan pengembangan (d
 ---
 
 ## 📋 Prasyarat Sistem
-Sebelum memulai, pastikan laptop sudah terinstall:
-* **Flutter SDK** (Channel Stable)
-* **PHP >= 8.1** & **Composer**
-* **MySQL Server** (XAMPP / Laragon / Native)
-* **IDE:** VS Code / Android Studio (dengan ekstensi Flutter & Dart)
+
+Sebelum memulai, pastikan perangkat Anda sudah terinstall komponen berikut dengan versi yang sesuai:
+
+| Komponen         | Versi Minimal            | Link Download                                                                                      |
+| :--------------- | :----------------------- | :------------------------------------------------------------------------------------------------- |
+| **Flutter SDK**  | `3.29.0` (Stable)        | [Download Flutter](https://docs.flutter.dev/get-started/install)                                   |
+| **Dart SDK**     | `3.7.0`                  | [Download Dart](https://dart.dev/get-dart)                                                         |
+| **PHP**          | `^8.2`                   | [Download PHP](https://www.php.net/downloads)                                                      |
+| **Composer**     | `Latest`                 | [Download Composer](https://getcomposer.org/download/)                                             |
+| **MySQL Server** | `8.0`                    | [Download XAMPP](https://www.apachefriends.org/download.html)                                      |
+| **IDE**          | VS Code / Android Studio | [VS Code](https://code.visualstudio.com/) / [Android Studio](https://developer.android.com/studio) |
+
+> [!IMPORTANT]  
+> Pastikan ekstensi **Flutter** dan **Dart** sudah terinstall pada IDE pilihan Anda.
 
 ---
 
 ## ⚙️ Langkah Instalasi
 
 ### 1. Setup Backend (Laravel API)
+
 1.  Buka terminal dan masuk ke folder backend:
     ```bash
-    cd folder-backend-anda
+    cd backend-coffee
     ```
-2.  Install semua dependency PHP:
+2.  Install dependency PHP:
     ```bash
     composer install
     ```
-3.  Duplikasi file environment:
+3.  Konfigurasi Environment:
     ```bash
     cp .env.example .env
-    ```
-4.  Generate application key:
-    ```bash
     php artisan key:generate
     ```
-5.  Sesuaikan konfigurasi database di file `.env`:
+4.  Sesuaikan konfigurasi database di file `.env`:
     ```env
     DB_CONNECTION=mysql
     DB_HOST=127.0.0.1
     DB_PORT=3306
-    DB_DATABASE=nama_db_anda
+    DB_DATABASE=coffee_db
     DB_USERNAME=root
     DB_PASSWORD=
     ```
-6.  Jalankan migrasi database:
+5.  Jalankan migrasi database:
     ```bash
     php artisan migrate
     ```
-7.  Nyalakan server lokal:
+6.  Jalankan server API:
     ```bash
     php artisan serve
     ```
@@ -61,19 +69,26 @@ Sebelum memulai, pastikan laptop sudah terinstall:
 ---
 
 ### 2. Setup Frontend (Flutter)
-1.  Buka terminal baru dan masuk ke folder frontend:
+
+1.  Masuk ke folder frontend:
     ```bash
-    cd folder-flutter-anda
+    cd coffee-app
     ```
-2.  Ambil paket-paket yang diperlukan:
+2.  Install paket-paket Flutter:
     ```bash
     flutter pub get
     ```
-3.  **Konfigurasi API URL:**
-    Buka file konfigurasi API (misal: `lib/constants.dart`) dan sesuaikan `baseUrl`:
-    - **Emulator Android:** Gunakan `http://10.0.2.2:8000/api`
-    - **Physical Device:** Gunakan IP Laptop Anda (contoh: `http://192.168.1.5:8000/api`)
-4.  Jalankan aplikasi:
+3.  **Konfigurasi Environment Flutter:**
+    Buat file `.env` di root folder `coffee-app` (jika belum ada) dan sesuaikan:
+    ```env
+    API_BASE_URL=http://localhost:8000/api
+    ```
+4.  **Konfigurasi API URL (Manual):**
+    Buka `lib/constants.dart` atau file konfigurasi terkait dan sesuaikan `baseUrl`:
+    - **Emulator Android:** `http://10.0.2.2:8000/api`
+    - **Chrome / Lokal:** `http://localhost:8000/api`
+    - **Physical Device:** Gunakan IP Private Laptop Anda.
+5.  Jalankan aplikasi:
     ```bash
     flutter run
     ```
