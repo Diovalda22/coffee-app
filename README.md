@@ -29,6 +29,20 @@ Sebelum memulai, pastikan perangkat Anda sudah terinstall komponen berikut denga
 > [!IMPORTANT]  
 > Pastikan ekstensi **Flutter** dan **Dart** sudah terinstall pada IDE pilihan Anda.
 
+### Cara Cepat Install Flutter SDK (via VS Code)
+
+Jika Anda belum menginstall Flutter SDK, Anda bisa mengikuti langkah-langkah mudah berikut melalui VS Code:
+
+1.  Instal **VS Code** dan buka aplikasinya.
+2.  Buka tampilan **Ekstensi** (`Ctrl+Shift+X`) dan cari "**Flutter**". Klik **Install**.
+3.  Buka **Command Palette** (`Ctrl+Shift+P`).
+4.  Ketik `flutter` dan pilih **Flutter: New Project**.
+5.  VS Code akan mendeteksi bahwa SDK tidak ditemukan. Klik **Download SDK**.
+6.  Pilih folder penyimpanan (contoh: `C:\dev` atau `~/development`).
+    > [!WARNING]  
+    > Hindari folder yang memerlukan hak akses Admin seperti `C:\Program Files`.
+7.  Setelah pengunduhan selesai, akan muncul notifikasi untuk menambahkan SDK ke **PATH**. Klik **Yes**.
+
 ---
 
 ## ⚙️ Langkah Instalasi
